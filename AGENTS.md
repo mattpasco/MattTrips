@@ -44,4 +44,5 @@ cd worker && npm ci && npm test
 
 - Page: push to `main`. GitHub Pages serves the repository root in about a minute.
 - Worker: `npm test`, then `npm run deploy` in `worker/`. It needs `wrangler login` to the owner's
-  Cloudflare account. `SYNC_URL` in `index.html` holds the workers.dev URL.
+  Cloudflare account. The URL is `https://matttrips-sync.matttrips-sync.workers.dev`, and `SYNC_URL` in `index.html`
+  uses it.

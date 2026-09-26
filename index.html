@@ -252,7 +252,7 @@ var pendingRemoveId=null, pendingTimer=null, pendingPurgeId=null;
 
 // ---------- sync: each device with the same password gets the newest record of each trip ----------
 // A page served from this computer uses the local Worker (wrangler dev), so a preview never touches real data.
-var SYNC_URL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'http://127.0.0.1:8787/s/':'https://matttrips-sync.WORKERS_SUBDOMAIN.workers.dev/s/';
+var SYNC_URL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'http://127.0.0.1:8787/s/':'https://matttrips-sync.matttrips-sync.workers.dev/s/';
 var doc=Trips.emptyDoc();
 try{ doc=JSON.parse(localStorage.getItem('matttrips:doc'))||doc; }catch(e){}
 function syncKey(){ try{ return localStorage.getItem('matttrips:sync'); }catch(e){ return null; } }
