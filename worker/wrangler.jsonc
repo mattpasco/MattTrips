@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "matttrips-sync",
+  "main": "src/index.js",
+  // The newest date that the pinned local runtime (workerd 2026-09-25) supports.
+  "compatibility_date": "2026-09-25",
+  "durable_objects": {
+    "bindings": [{ "name": "SYNC", "class_name": "SyncDoc" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SyncDoc"] }],
+  // Slows down password guessing: 60 requests a minute for each client address.
+  "ratelimits": [{ "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }]
+}
