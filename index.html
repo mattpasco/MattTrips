@@ -294,8 +294,8 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
-var editingCrew=null; // { tripId, idx, name, id } of the crew row being edited
-var addDraft={};      // tripId -> { seat, name, id } typed in the add-crew box
+var editingCrew=null; // { tripId, idx, name, id, phone } of the crew row being edited
+var addDraft={};      // tripId -> { seat, name, id, phone } typed in the add-crew box
 var cache={};
 var PHONE='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>';
 
@@ -409,7 +409,8 @@ function tripHTML(t,open,noRemove){
       return '<div class="crew-edit">'+
         '<input type="text" class="crew-name-input" value="'+escAttr(editingCrew.name)+'" placeholder="Name" aria-label="Name">'+
         '<input type="text" class="crew-id-input" value="'+escAttr(editingCrew.id)+'" placeholder="Employee number" aria-label="Employee number">'+
-        (c.added?'<small class="zsub">Clear both to remove this crew member.</small>':'')+
+        '<input type="tel" class="crew-phone-input" value="'+escAttr(editingCrew.phone)+'" placeholder="Phone number" aria-label="Phone number">'+
+        (c.added?'<small class="zsub">Clear all three to remove this crew member.</small>':'')+
         '<div class="crew-edit-actions">'+
           '<button type="button" class="fo-cancel" data-crew-cancel="1">Cancel</button>'+
           '<button type="button" class="fo-save" data-crew-save="'+t.id+'">Save</button>'+
@@ -417,7 +418,8 @@ function tripHTML(t,open,noRemove){
     }
     var isCap=(c.seat||'').toLowerCase()==='captain';
     return '<div><span>'+(c.name?escAttr(c.name)+' ('+escAttr((c.seat||'').toLowerCase())+(c.code?', '+escAttr(c.code):'')+')':escAttr(c.seat||''))+
-      (noRemove||isCap?'':' <button type="button" class="fo-edit" data-crew-edit="'+t.id+'" data-crew-idx="'+i+'" data-crew-name="'+escAttr(c.name)+'" data-crew-id="'+escAttr(c.id)+'">Edit</button>')+
+      (noRemove||isCap?'':' <button type="button" class="fo-edit" data-crew-edit="'+t.id+'" data-crew-idx="'+i+'" data-crew-name="'+escAttr(c.name)+'" data-crew-id="'+escAttr(c.id)+'" data-crew-phone="'+escAttr(c.phone)+'">Edit</button>')+
+      (c.phone?'<br>'+phone(escAttr(c.phone)):'')+
       '</span><span>'+escAttr(c.id)+'</span></div>';
   }).join('')+(noRemove?'':(function(){
     var dr=addDraft[t.id]||{};
@@ -425,6 +427,7 @@ function tripHTML(t,open,noRemove){
       '<input type="text" class="add-seat" value="'+escAttr(dr.seat)+'" placeholder="Role, for example Jumpseat" aria-label="Role">'+
       '<input type="text" class="add-name" value="'+escAttr(dr.name)+'" placeholder="Name" aria-label="Name">'+
       '<input type="text" class="add-id" value="'+escAttr(dr.id)+'" placeholder="Employee number" aria-label="Employee number">'+
+      '<input type="tel" class="add-phone" value="'+escAttr(dr.phone)+'" placeholder="Phone number" aria-label="Phone number">'+
       '<div class="crew-edit-actions"><button type="button" class="fo-save" data-crew-add="'+t.id+'">Add crew member</button></div></div>';
   })())+'</div></div>';
   var fares=faresArr.length?'<div class="sec"><h3>Deadhead fares</h3><div class="rows">'+faresArr.map(function(f){
@@ -520,7 +523,7 @@ document.getElementById('list').addEventListener('click',function(ev){
   if(crewEdit){
     ev.preventDefault();
     var ds=crewEdit.dataset;
-    editingCrew={tripId:ds.crewEdit, idx:+ds.crewIdx, name:ds.crewName||'', id:ds.crewId||''};
+    editingCrew={tripId:ds.crewEdit, idx:+ds.crewIdx, name:ds.crewName||'', id:ds.crewId||'', phone:ds.crewPhone||''};
     render();
     return;
   }
@@ -534,7 +537,7 @@ document.getElementById('list').addEventListener('click',function(ev){
     ev.preventDefault();
     var ec=editingCrew;
     editingCrew=null;
-    if(ec) change(function(d,now){ Trips.editCrew(d,ec.tripId,ec.idx,{name:ec.name.trim(),id:ec.id.trim()},now); });
+    if(ec) change(function(d,now){ Trips.editCrew(d,ec.tripId,ec.idx,{name:ec.name.trim(),id:ec.id.trim(),phone:ec.phone.trim()},now); });
     return;
   }
   if(crewAdd){
@@ -557,11 +560,13 @@ document.getElementById('list').addEventListener('input',function(ev){
     if(cl.contains('add-seat')) dr.seat=ev.target.value;
     else if(cl.contains('add-name')) dr.name=ev.target.value;
     else if(cl.contains('add-id')) dr.id=ev.target.value;
+    else if(cl.contains('add-phone')) dr.phone=ev.target.value;
     return;
   }
   if(!editingCrew) return;
   if(cl.contains('crew-name-input')) editingCrew.name=ev.target.value;
   else if(cl.contains('crew-id-input')) editingCrew.id=ev.target.value;
+  else if(cl.contains('crew-phone-input')) editingCrew.phone=ev.target.value;
 });
 
 document.getElementById('hidden-sec').addEventListener('click',function(ev){

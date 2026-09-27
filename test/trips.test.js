@@ -109,6 +109,29 @@ test('a crew edit with blank fields on an added member: removes that member', ()
   assert.equal(T.visibleTrips(doc)[0].crew.length, 2);
 });
 
+test('a crew edit with a phone number: the member shows it; a blank phone removes it', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.editCrew(doc, 'a', 1, { name: 'Fo', id: '2', phone: '+1-901-555-0100' }, 20);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew[1], { seat: 'First officer', code: '', id: '2', name: 'Fo', phone: '+1-901-555-0100' });
+  T.editCrew(doc, 'a', 1, { name: 'Fo', id: '2', phone: '' }, 21);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew[1], { seat: 'First officer', code: '', id: '2', name: 'Fo' });
+});
+
+test('an added crew member with only a phone number: is added, with the phone', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.addCrew(doc, 'a', { seat: '', name: '', id: '', phone: ' 555-0101 ' }, 20);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew[2], { seat: 'Crew', code: '', id: '', name: '', phone: '555-0101', added: true });
+});
+
+test('an added member cleared of name and number but not phone: stays; all three blank: removed', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.addCrew(doc, 'a', { seat: 'Jumpseat', name: 'Jay', id: '5', phone: '555-0102' }, 20);
+  T.editCrew(doc, 'a', 2, { name: '', id: '', phone: '555-0102' }, 21);
+  assert.equal(T.visibleTrips(doc)[0].crew.length, 3);
+  T.editCrew(doc, 'a', 2, { name: '', id: '', phone: '' }, 22);
+  assert.equal(T.visibleTrips(doc)[0].crew.length, 2);
+});
+
 test('an old FO edit (fo field, from before crew edits): still shows, and the next crew edit keeps it', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
   doc.trips.a.fo = { name: 'Old Fo', id: '8' };

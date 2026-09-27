@@ -39,20 +39,24 @@ function setCrew(doc, id, now, fn) {
     delete r.fo;
   });
 }
-/** Set the name and number of crew member i. Blank both on an added member removes that member. */
+/** Set the name, number, and phone of crew member i. Blank all three on an added member removes that member. */
 function editCrew(doc, id, i, who, now) {
   setCrew(doc, id, now, function (crew) {
     if (!crew[i]) return;
-    if (crew[i].added && !who.name && !who.id) crew.splice(i, 1);
-    else { crew[i].name = who.name; crew[i].id = who.id; }
+    if (crew[i].added && !who.name && !who.id && !who.phone) { crew.splice(i, 1); return; }
+    crew[i].name = who.name; crew[i].id = who.id;
+    if (who.phone) crew[i].phone = who.phone; else delete crew[i].phone;
   });
 }
-/** Add a crew member who is not on the recap. With no name and no number, nothing changes. */
+/** Add a crew member who is not on the recap. With no name, number, or phone, nothing changes. */
 function addCrew(doc, id, who, now) {
-  var name = (who.name || '').trim(), num = (who.id || '').trim();
-  if (!name && !num) return;
+  var name = (who.name || '').trim(), num = (who.id || '').trim(), phone = (who.phone || '').trim();
+  if (!name && !num && !phone) return;
   setCrew(doc, id, now, function (crew) {
-    crew.push({ seat: (who.seat || '').trim() || 'Crew', code: '', id: num, name: name, added: true });
+    var c = { seat: (who.seat || '').trim() || 'Crew', code: '', id: num, name: name };
+    if (phone) c.phone = phone;
+    c.added = true;
+    crew.push(c);
   });
 }
 function purgeTrip(doc, id, now) { doc.trips[id] = { updatedAt: now, purged: true }; }
