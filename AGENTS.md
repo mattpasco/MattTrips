@@ -28,7 +28,8 @@ cd worker && npm ci && npm test
 
 ## Sync
 
-- The document is `{ trips: { <id>: { updatedAt, trip?, removed?, fo?, purged? } } }`. Each trip
+- The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, purged? } } }`.
+  `crew` is the edited crew list; `fo` is an older FO-only edit that `trips.js` still reads. Each trip
   merges on its own: the newest `updatedAt` wins (`mergeDocs` in `trips.js`, `merge` in
   `worker/src/index.js`; keep them the same). A purge keeps `{ updatedAt, purged: true }`.
 - Only a real change may set `updatedAt`. If a device sets it without an edit, its old copy
