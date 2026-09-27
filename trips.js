@@ -27,12 +27,12 @@ function restoreTrip(doc, id, now) { edit(doc, id, now, function (r) { delete r.
 function setFO(doc, id, fo, now) { edit(doc, id, now, function (r) { r.fo = { name: fo.name, id: fo.id }; }); }
 function purgeTrip(doc, id, now) { doc.trips[id] = { updatedAt: now, purged: true }; }
 
-/** The crew with the first officer replaced by the override. Blank override fields keep the recap value. */
+/** The crew with the first officer's name and number replaced by the override. A blank field shows blank. */
 function applyCrewOverride(crew, fo) {
   if (!fo) return crew;
   return crew.map(function (c) {
     if ((c.seat || '').toLowerCase() !== 'first officer') return c;
-    return { seat: c.seat, code: c.code, name: fo.name || c.name, id: fo.id || c.id };
+    return { seat: c.seat, code: c.code, name: fo.name, id: fo.id };
   });
 }
 

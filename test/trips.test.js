@@ -56,16 +56,22 @@ test('a purged trip: a tombstone with no trip data, shown nowhere, and it can be
   assert.deepEqual(ids(T.visibleTrips(doc)), ['a']);
 });
 
-test('an FO override: changes the first officer only, and keeps blank fields', () => {
+test('an FO override: changes the first officer only', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
-  T.setFO(doc, 'a', { name: 'New Fo', id: '' }, 20);
+  T.setFO(doc, 'a', { name: 'New Fo', id: '7' }, 20);
   const crew = T.visibleTrips(doc)[0].crew;
   assert.deepEqual(crew, [
     { seat: 'Captain', code: '', id: '1', name: 'Cap' },
-    { seat: 'First officer', code: '', id: '2', name: 'New Fo' },
+    { seat: 'First officer', code: '', id: '7', name: 'New Fo' },
   ]);
   assert.equal(doc.trips.a.trip.crew[1].name, 'Fo', 'the stored trip is not changed');
   assert.equal(doc.trips.a.updatedAt, 20);
+});
+
+test('an FO override with blank fields: the first officer name and number show blank', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.setFO(doc, 'a', { name: '', id: '' }, 20);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew[1], { seat: 'First officer', code: '', id: '', name: '' });
 });
 
 test('totals: count and block/pay sums of the given trips, planned and actual', () => {

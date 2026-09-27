@@ -413,7 +413,7 @@ function tripHTML(t,open,noRemove){
           '<button type="button" class="fo-save" data-fo-save="'+t.id+'">Save</button>'+
         '</div></div>';
     }
-    return '<div><span>'+c.name+' ('+(c.seat||'').toLowerCase()+(c.code?', '+c.code:'')+')'+
+    return '<div><span>'+(c.name?c.name+' ('+(c.seat||'').toLowerCase()+(c.code?', '+c.code:'')+')':(c.seat||''))+
       (isFO?' <button type="button" class="fo-edit" data-fo-edit="'+t.id+'" data-fo-name="'+escAttr(c.name)+'" data-fo-id="'+escAttr(c.id)+'">Edit</button>':'')+
       '</span><span>'+c.id+'</span></div>';
   }).join('')+'</div></div>';
