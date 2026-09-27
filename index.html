@@ -140,7 +140,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
   border-radius:7px;padding:2px 8px;margin-left:8px;cursor:pointer}
 .crew-edit{padding:10px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .crew-edit input{font:500 15px var(--sans);background:var(--bg);color:var(--ink);
-  border:1px solid var(--line);border-radius:8px;padding:8px 9px;width:100%}
+  border:1px solid var(--line);border-radius:8px;padding:8px 9px;width:100%;box-sizing:border-box} /* inside <details>, box-sizing does not inherit */
 .crew-edit-actions{display:flex;gap:8px}
 .crew-edit-actions button{flex:1;font:600 14px var(--sans);border-radius:8px;padding:8px;min-height:38px;cursor:pointer}
 .fo-save{background:var(--accent);color:var(--on-accent);border:0}
@@ -294,7 +294,8 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
-var editingFO=null;
+var editingCrew=null; // { tripId, idx, name, id } of the crew row being edited
+var addDraft={};      // tripId -> { seat, name, id } typed in the add-crew box
 var cache={};
 var PHONE='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>';
 
@@ -402,21 +403,30 @@ function tripHTML(t,open,noRemove){
     tl+= it.t==='f' ? leg(it) : layover(it,t.items[i-1]);
   });
 
-  var crew='<div class="sec"><h3>Crew</h3><div class="rows">'+crewArr.map(function(c){
-    var isFO=(c.seat||'').toLowerCase()==='first officer';
-    if(isFO && editingFO && editingFO.tripId===t.id){
+  // The paste preview (noRemove) is not in the doc yet, so it has no crew edits.
+  var crew='<div class="sec"><h3>Crew</h3><div class="rows">'+crewArr.map(function(c,i){
+    if(editingCrew && editingCrew.tripId===t.id && editingCrew.idx===i){
       return '<div class="crew-edit">'+
-        '<input type="text" class="fo-name-input" value="'+escAttr(editingFO.name)+'" placeholder="Name">'+
-        '<input type="text" class="fo-id-input" value="'+escAttr(editingFO.id)+'" placeholder="Employee ID">'+
+        '<input type="text" class="crew-name-input" value="'+escAttr(editingCrew.name)+'" placeholder="Name" aria-label="Name">'+
+        '<input type="text" class="crew-id-input" value="'+escAttr(editingCrew.id)+'" placeholder="Employee number" aria-label="Employee number">'+
+        (c.added?'<small class="zsub">Clear both to remove this crew member.</small>':'')+
         '<div class="crew-edit-actions">'+
-          '<button type="button" class="fo-cancel" data-fo-cancel="'+t.id+'">Cancel</button>'+
-          '<button type="button" class="fo-save" data-fo-save="'+t.id+'">Save</button>'+
+          '<button type="button" class="fo-cancel" data-crew-cancel="1">Cancel</button>'+
+          '<button type="button" class="fo-save" data-crew-save="'+t.id+'">Save</button>'+
         '</div></div>';
     }
-    return '<div><span>'+(c.name?c.name+' ('+(c.seat||'').toLowerCase()+(c.code?', '+c.code:'')+')':(c.seat||''))+
-      (isFO?' <button type="button" class="fo-edit" data-fo-edit="'+t.id+'" data-fo-name="'+escAttr(c.name)+'" data-fo-id="'+escAttr(c.id)+'">Edit</button>':'')+
-      '</span><span>'+c.id+'</span></div>';
-  }).join('')+'</div></div>';
+    var isCap=(c.seat||'').toLowerCase()==='captain';
+    return '<div><span>'+(c.name?escAttr(c.name)+' ('+escAttr((c.seat||'').toLowerCase())+(c.code?', '+escAttr(c.code):'')+')':escAttr(c.seat||''))+
+      (noRemove||isCap?'':' <button type="button" class="fo-edit" data-crew-edit="'+t.id+'" data-crew-idx="'+i+'" data-crew-name="'+escAttr(c.name)+'" data-crew-id="'+escAttr(c.id)+'">Edit</button>')+
+      '</span><span>'+escAttr(c.id)+'</span></div>';
+  }).join('')+(noRemove?'':(function(){
+    var dr=addDraft[t.id]||{};
+    return '<div class="crew-edit crew-add" data-trip="'+t.id+'">'+
+      '<input type="text" class="add-seat" value="'+escAttr(dr.seat)+'" placeholder="Role, for example Jumpseat" aria-label="Role">'+
+      '<input type="text" class="add-name" value="'+escAttr(dr.name)+'" placeholder="Name" aria-label="Name">'+
+      '<input type="text" class="add-id" value="'+escAttr(dr.id)+'" placeholder="Employee number" aria-label="Employee number">'+
+      '<div class="crew-edit-actions"><button type="button" class="fo-save" data-crew-add="'+t.id+'">Add crew member</button></div></div>';
+  })())+'</div></div>';
   var fares=faresArr.length?'<div class="sec"><h3>Deadhead fares</h3><div class="rows">'+faresArr.map(function(f){
     return '<div><span>'+f.od+' on '+f.al+', class '+f.cls+'</span><span>$'+f.amt+'</span></div>';
   }).join('')+'</div></div>':'';
@@ -488,9 +498,10 @@ document.getElementById('list').addEventListener('click',function(ev){
   var rmBtn=ev.target.closest('[data-rm]');
   var confirmBtn=ev.target.closest('[data-confirm-rm]');
   var cancelBtn=ev.target.closest('[data-cancel-rm]');
-  var foEdit=ev.target.closest('[data-fo-edit]');
-  var foSave=ev.target.closest('[data-fo-save]');
-  var foCancel=ev.target.closest('[data-fo-cancel]');
+  var crewEdit=ev.target.closest('[data-crew-edit]');
+  var crewSave=ev.target.closest('[data-crew-save]');
+  var crewCancel=ev.target.closest('[data-crew-cancel]');
+  var crewAdd=ev.target.closest('[data-crew-add]');
   if(confirmBtn){
     ev.preventDefault();
     clearTimeout(pendingTimer);
@@ -506,25 +517,31 @@ document.getElementById('list').addEventListener('click',function(ev){
     render();
     return;
   }
-  if(foEdit){
+  if(crewEdit){
     ev.preventDefault();
-    editingFO={tripId:foEdit.dataset.foEdit, name:foEdit.dataset.foName||'', id:foEdit.dataset.foId||''};
+    var ds=crewEdit.dataset;
+    editingCrew={tripId:ds.crewEdit, idx:+ds.crewIdx, name:ds.crewName||'', id:ds.crewId||''};
     render();
     return;
   }
-  if(foCancel){
+  if(crewCancel){
     ev.preventDefault();
-    editingFO=null;
+    editingCrew=null;
     render();
     return;
   }
-  if(foSave){
+  if(crewSave){
     ev.preventDefault();
-    var tid=foSave.dataset.foSave;
-    var name=(editingFO&&editingFO.name||'').trim();
-    var eid=(editingFO&&editingFO.id||'').trim();
-    editingFO=null;
-    change(function(d,now){ Trips.setFO(d,tid,{name:name,id:eid},now); });
+    var ec=editingCrew;
+    editingCrew=null;
+    if(ec) change(function(d,now){ Trips.editCrew(d,ec.tripId,ec.idx,{name:ec.name.trim(),id:ec.id.trim()},now); });
+    return;
+  }
+  if(crewAdd){
+    ev.preventDefault();
+    var atid=crewAdd.dataset.crewAdd, dr=addDraft[atid]||{};
+    delete addDraft[atid];
+    change(function(d,now){ Trips.addCrew(d,atid,dr,now); });
     return;
   }
   if(rmBtn){
@@ -534,9 +551,17 @@ document.getElementById('list').addEventListener('click',function(ev){
   }
 });
 document.getElementById('list').addEventListener('input',function(ev){
-  if(!editingFO) return;
-  if(ev.target.classList.contains('fo-name-input')) editingFO.name=ev.target.value;
-  else if(ev.target.classList.contains('fo-id-input')) editingFO.id=ev.target.value;
+  var cl=ev.target.classList, add=ev.target.closest('.crew-add');
+  if(add){
+    var dr=addDraft[add.dataset.trip]=addDraft[add.dataset.trip]||{};
+    if(cl.contains('add-seat')) dr.seat=ev.target.value;
+    else if(cl.contains('add-name')) dr.name=ev.target.value;
+    else if(cl.contains('add-id')) dr.id=ev.target.value;
+    return;
+  }
+  if(!editingCrew) return;
+  if(cl.contains('crew-name-input')) editingCrew.name=ev.target.value;
+  else if(cl.contains('crew-id-input')) editingCrew.id=ev.target.value;
 });
 
 document.getElementById('hidden-sec').addEventListener('click',function(ev){

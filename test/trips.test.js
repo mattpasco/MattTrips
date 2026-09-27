@@ -56,22 +56,66 @@ test('a purged trip: a tombstone with no trip data, shown nowhere, and it can be
   assert.deepEqual(ids(T.visibleTrips(doc)), ['a']);
 });
 
-test('an FO override: changes the first officer only', () => {
+test('a crew edit: changes that member only, and the stored recap stays the same', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
-  T.setFO(doc, 'a', { name: 'New Fo', id: '7' }, 20);
-  const crew = T.visibleTrips(doc)[0].crew;
-  assert.deepEqual(crew, [
+  T.editCrew(doc, 'a', 1, { name: 'New Fo', id: '7' }, 20);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew, [
     { seat: 'Captain', code: '', id: '1', name: 'Cap' },
     { seat: 'First officer', code: '', id: '7', name: 'New Fo' },
   ]);
-  assert.equal(doc.trips.a.trip.crew[1].name, 'Fo', 'the stored trip is not changed');
+  assert.equal(doc.trips.a.trip.crew[1].name, 'Fo');
   assert.equal(doc.trips.a.updatedAt, 20);
 });
 
-test('an FO override with blank fields: the first officer name and number show blank', () => {
+test('a crew edit of a third recap member: works the same as the first officer', () => {
+  const t = trip('a', '2026-10-01T00:00:00Z');
+  t.crew.push({ seat: 'Relief officer', code: '', id: '3', name: 'Rel' });
+  const doc = docWith(t);
+  T.editCrew(doc, 'a', 2, { name: 'Other', id: '33' }, 20);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew[2], { seat: 'Relief officer', code: '', id: '33', name: 'Other' });
+  assert.equal(T.visibleTrips(doc)[0].crew[1].name, 'Fo');
+});
+
+test('a crew edit with blank fields: a recap member stays, with blank name and number', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
-  T.setFO(doc, 'a', { name: '', id: '' }, 20);
+  T.editCrew(doc, 'a', 1, { name: '', id: '' }, 20);
   assert.deepEqual(T.visibleTrips(doc)[0].crew[1], { seat: 'First officer', code: '', id: '', name: '' });
+});
+
+test('an added crew member: shows after the recap crew, marked as added; the role defaults to Crew', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.addCrew(doc, 'a', { seat: 'Jumpseat', name: 'Jay', id: '5' }, 20);
+  T.addCrew(doc, 'a', { seat: '  ', name: 'Kay', id: '' }, 21);
+  const crew = T.visibleTrips(doc)[0].crew;
+  assert.deepEqual(crew.slice(2), [
+    { seat: 'Jumpseat', code: '', id: '5', name: 'Jay', added: true },
+    { seat: 'Crew', code: '', id: '', name: 'Kay', added: true },
+  ]);
+  assert.equal(doc.trips.a.trip.crew.length, 2, 'the stored recap is not changed');
+  assert.equal(doc.trips.a.updatedAt, 21);
+});
+
+test('an added crew member with no name and no number: nothing is added and nothing changes', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.addCrew(doc, 'a', { seat: 'Jumpseat', name: ' ', id: '' }, 20);
+  assert.equal(T.visibleTrips(doc)[0].crew.length, 2);
+  assert.equal(doc.trips.a.updatedAt, 1);
+});
+
+test('a crew edit with blank fields on an added member: removes that member', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  T.addCrew(doc, 'a', { seat: 'Jumpseat', name: 'Jay', id: '5' }, 20);
+  T.editCrew(doc, 'a', 2, { name: '', id: '' }, 21);
+  assert.equal(T.visibleTrips(doc)[0].crew.length, 2);
+});
+
+test('an old FO edit (fo field, from before crew edits): still shows, and the next crew edit keeps it', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  doc.trips.a.fo = { name: 'Old Fo', id: '8' };
+  assert.equal(T.visibleTrips(doc)[0].crew[1].name, 'Old Fo');
+  T.addCrew(doc, 'a', { seat: 'Jumpseat', name: 'Jay', id: '5' }, 20);
+  assert.equal(doc.trips.a.fo, undefined);
+  assert.deepEqual(T.visibleTrips(doc)[0].crew.map(c => c.name), ['Cap', 'Old Fo', 'Jay']);
 });
 
 test('totals: count and block/pay sums of the given trips, planned and actual', () => {
@@ -86,11 +130,11 @@ test('a merge: for each trip the newer updatedAt wins, and trips on one side onl
   const local = docWith(trip('a', '2026-10-01T00:00:00Z'), trip('b', '2026-10-02T00:00:00Z'));
   const server = docWith(trip('a', '2026-10-01T00:00:00Z'), trip('c', '2026-10-03T00:00:00Z'));
   T.removeTrip(local, 'a', 50);
-  T.setFO(server, 'a', { name: 'X', id: '9' }, 40);
+  T.editCrew(server, 'a', 1, { name: 'X', id: '9' }, 40);
   const m = T.mergeDocs(local, server);
   assert.deepEqual(Object.keys(m.trips).sort(), ['a', 'b', 'c']);
   assert.equal(m.trips.a.removed, true);
-  assert.equal(m.trips.a.fo, undefined);
+  assert.equal(m.trips.a.crew, undefined);
 });
 
 test('a merge: an older copy does not revive a purged trip', () => {

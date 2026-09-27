@@ -2,7 +2,8 @@
  * The sync document of the app and the rules that change it.
  * Plain browser script (also runnable under Node via `require`). No dependencies.
  *
- * doc = { trips: { <id>: { updatedAt, trip?, removed?, fo?, purged? } } }
+ * doc = { trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, purged? } } }
+ * crew is the edited crew list (it replaces trip.crew). fo is an older FO edit, still read.
  * Each change sets updatedAt of that one trip. A merge keeps, for each trip, the record with the
  * newest updatedAt (the Worker does the same). A purge keeps { updatedAt, purged: true } so an
  * older copy on another device can not bring the trip back.
@@ -24,10 +25,39 @@ function edit(doc, id, now, fn) {
 }
 function removeTrip(doc, id, now) { edit(doc, id, now, function (r) { r.removed = true; }); }
 function restoreTrip(doc, id, now) { edit(doc, id, now, function (r) { delete r.removed; }); }
-function setFO(doc, id, fo, now) { edit(doc, id, now, function (r) { r.fo = { name: fo.name, id: fo.id }; }); }
+
+/** The crew of a record: the edited list if there is one, else the recap crew, with an old FO edit on top. */
+function crewOf(rec) {
+  var base = rec.crew || (Array.isArray(rec.trip.crew) ? rec.trip.crew : []);
+  return applyCrewOverride(base, rec.fo);
+}
+function setCrew(doc, id, now, fn) {
+  edit(doc, id, now, function (r) {
+    var crew = crewOf(r).map(function (c) { return Object.assign({}, c); });
+    fn(crew);
+    r.crew = crew;
+    delete r.fo;
+  });
+}
+/** Set the name and number of crew member i. Blank both on an added member removes that member. */
+function editCrew(doc, id, i, who, now) {
+  setCrew(doc, id, now, function (crew) {
+    if (!crew[i]) return;
+    if (crew[i].added && !who.name && !who.id) crew.splice(i, 1);
+    else { crew[i].name = who.name; crew[i].id = who.id; }
+  });
+}
+/** Add a crew member who is not on the recap. With no name and no number, nothing changes. */
+function addCrew(doc, id, who, now) {
+  var name = (who.name || '').trim(), num = (who.id || '').trim();
+  if (!name && !num) return;
+  setCrew(doc, id, now, function (crew) {
+    crew.push({ seat: (who.seat || '').trim() || 'Crew', code: '', id: num, name: name, added: true });
+  });
+}
 function purgeTrip(doc, id, now) { doc.trips[id] = { updatedAt: now, purged: true }; }
 
-/** The crew with the first officer's name and number replaced by the override. A blank field shows blank. */
+/** The crew with the first officer's name and number replaced by an old FO edit. A blank field shows blank. */
 function applyCrewOverride(crew, fo) {
   if (!fo) return crew;
   return crew.map(function (c) {
@@ -36,13 +66,13 @@ function applyCrewOverride(crew, fo) {
   });
 }
 
-/** The trips of the records that pass `keep`, with the FO override applied, by report time. */
+/** The trips of the records that pass `keep`, with their crew edits, by report time. */
 function tripsWhere(doc, keep) {
   return Object.keys(doc.trips).map(function (id) { return doc.trips[id]; })
     .filter(function (r) { return live(r) && keep(r); })
     .map(function (r) {
       var t = Object.assign({}, r.trip);
-      t.crew = applyCrewOverride(Array.isArray(t.crew) ? t.crew : [], r.fo);
+      t.crew = crewOf(r);
       return t;
     })
     .sort(function (a, b) { return Date.parse(a.show) - Date.parse(b.show); });
@@ -73,7 +103,7 @@ function mergeDocs(a, b) {
 
 var api = {
   emptyDoc: emptyDoc, hasTrip: hasTrip, addTrip: addTrip, removeTrip: removeTrip, restoreTrip: restoreTrip,
-  purgeTrip: purgeTrip, setFO: setFO, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
+  purgeTrip: purgeTrip, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
   hiddenTrips: hiddenTrips, totals: totals, mergeDocs: mergeDocs,
 };
 global.Trips = api;
