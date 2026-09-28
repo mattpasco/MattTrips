@@ -174,6 +174,9 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .pastewrap{margin:6px 0 4px}
 .paste-btn{width:100%;font:600 15.5px var(--sans);color:var(--accent);background:var(--band);
   border:1.5px dashed var(--accent);border-radius:12px;padding:12px;min-height:44px;cursor:pointer}
+.recap-link{display:block;text-align:center;font:500 13.5px var(--sans);color:var(--mute);
+  text-decoration:none;margin-top:6px;min-height:32px;line-height:32px}
+.recap-link:hover,.recap-link:focus-visible{color:var(--accent)}
 .paste-form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:10px}
 .paste-form p{margin:0 0 10px;font-size:14px;color:var(--mute);line-height:1.45}
 .paste-form textarea{width:100%;min-height:160px;font:400 13px/1.4 ui-monospace,monospace;
@@ -209,6 +212,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
   <div id="app" hidden>
   <div class="pastewrap">
     <button type="button" class="paste-btn" id="pasteBtn">+ Paste a trip recap</button>
+    <a class="recap-link" href="https://pilot.fedex.com/crewnav/crew-hub/crew-calendar/" target="_blank" rel="noopener">Open crew recap page &#8599;</a>
     <div id="pasteForm"></div>
     <div id="pastePreview"></div>
   </div>
