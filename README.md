@@ -28,15 +28,14 @@ Site: https://mattpasco.github.io/MattTrips/
 The page and your last saved trips stay on the device, so the page opens in airplane mode. This
 works after one launch with a network (open the page once after each update).
 
-On an iPhone, Safari deletes the saved trips of a site that you have not opened for 7 days. A Home
-Screen app is kept. So:
+On an iPhone, Chrome and Safari both use Apple's web engine. It can delete the saved trips of a
+site that you have not opened for 7 days. A Home Screen app is kept. So:
 
-1. Open the site in Safari. Tap the share button, then `Add to Home Screen`. Keep `Open as Web App` on.
+1. Open the site in Chrome (iOS 16.4 or later). Tap Share, then `Add to Home Screen`, then `Add`.
+   (In Safari: Share, `Add to Home Screen`, and keep `Open as Web App` on.) The icon must open
+   full screen, with no address bar. If it opens in a browser tab, remove the icon and add it again.
 2. Always open Matt's trips from the Home Screen icon. It has its own storage, so open it once
    with a network and type the password there.
-
-The trips are not in this repository (it is public). They are in the sync Worker, under a key
-made from the password. Anyone who knows the password can see and change the trips.
 
 ## Run locally
 
