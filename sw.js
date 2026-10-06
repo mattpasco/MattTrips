@@ -5,7 +5,7 @@
  * If the app loads a new file, add it to FILES.
  */
 const CACHE = 'matttrips';
-const FILES = ['./', 'index.html', 'parse.js', 'trips.js'];
+const FILES = ['./', 'index.html', 'parse.js', 'trips.js', 'manifest.json'];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'no-cache' }))))));
 

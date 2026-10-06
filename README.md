@@ -23,6 +23,18 @@ Site: https://mattpasco.github.io/MattTrips/
    the page. With no network, the button shows `Lock ⚠`, and the page tries again later.
 4. `Lock` forgets the password and the trips on this device.
 
+## Offline and iPhone
+
+The page and your last saved trips stay on the device, so the page opens in airplane mode. This
+works after one launch with a network (open the page once after each update).
+
+On an iPhone, Safari deletes the saved trips of a site that you have not opened for 7 days. A Home
+Screen app is kept. So:
+
+1. Open the site in Safari. Tap the share button, then `Add to Home Screen`. Keep `Open as Web App` on.
+2. Always open Matt's trips from the Home Screen icon. It has its own storage, so open it once
+   with a network and type the password there.
+
 The trips are not in this repository (it is public). They are in the sync Worker, under a key
 made from the password. Anyone who knows the password can see and change the trips.
 

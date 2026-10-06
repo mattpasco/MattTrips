@@ -1,0 +1,9 @@
+{
+  "name": "Matt's trips",
+  "short_name": "Matt's trips",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e6ebf1",
+  "theme_color": "#4b1a8c"
+}
