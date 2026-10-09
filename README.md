@@ -9,9 +9,10 @@ Site: https://mattpasco.github.io/MattTrips/
 
 - `index.html`: the page (markup, styles, rendering, and the sync client).
 - `parse.js`: the trip recap parser. `parseTripPaste(text)` returns a trip.
-- `trips.js`: the sync document and the rules that change it (add, remove, restore, purge, FO edit, merge).
+- `trips.js`: the sync document and the rules that change it (add, remove, restore, purge, crew edits, merge).
+- `calendar.js`: the month grid of the calendar view (which days each trip covers).
 - `sw.js`: offline launch. `worker/`: the sync server (a Cloudflare Worker).
-- `test/`: contract tests for `parse.js` and `trips.js`. `worker/test/`: HTTP tests for the Worker.
+- `test/`: contract tests for `parse.js`, `trips.js`, and `calendar.js`. `worker/test/`: HTTP tests for the Worker.
 
 ## Use
 
@@ -19,9 +20,13 @@ Site: https://mattpasco.github.io/MattTrips/
    each device. Your password manager can save it.
 2. `+ Paste a trip recap`: on the trip recap page, select all, copy, and paste. Check the
    preview, then tap `Add this trip`.
-3. Each change syncs to your other devices within a few seconds, and again each time you open
+3. `Calendar view` shows the trips on a month grid (weeks start on Sunday). A trip is a bar across
+   the days from its report to its release, by Memphis time. A trip that crosses a month end shows
+   in both months. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
+   that trip in the list. `Trip list` goes back to the list.
+4. Each change syncs to your other devices within a few seconds, and again each time you open
    the page. With no network, the button shows `Lock ⚠`, and the page tries again later.
-4. `Lock` forgets the password and the trips on this device.
+5. `Lock` forgets the password and the trips on this device.
 
 ## Offline and iPhone
 

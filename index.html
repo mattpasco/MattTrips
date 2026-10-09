@@ -176,6 +176,27 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .paste-btn,.recap-link{width:100%;font:600 15.5px var(--sans);color:var(--accent);background:var(--band);
   border:1.5px dashed var(--accent);border-radius:12px;padding:12px;min-height:44px;cursor:pointer}
 .recap-link{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:44px;padding-top:0;padding-bottom:0;text-decoration:none;margin-bottom:8px}
+.cal-toggle{margin-top:8px}
+
+.cal-nav{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
+.cal-nav h2{flex:1;margin:0;font:700 22px/1 var(--cond)}
+.cal-nav button{font:600 15px var(--sans);color:var(--accent);background:var(--band);border:1.5px solid var(--accent);
+  border-radius:10px;min-width:44px;min-height:40px;padding:0 12px;cursor:pointer}
+.cal-dow,.cal-wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-dow span{text-align:center;font:600 12.5px var(--sans);color:var(--mute);padding:0 0 4px}
+.cal-grid{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cal-wk+.cal-wk{border-top:1px solid var(--line)}
+.cday{padding:3px 0 0 4px;border-left:1px solid var(--line);min-width:0}
+.cday:first-child{border-left:0}
+.cday span{display:inline-block;font:600 12.5px/18px var(--cond);color:var(--ink);min-width:18px;text-align:center;border-radius:999px}
+.cday.out{background:var(--chip)}
+.cday.out span{color:var(--mute)}
+.cday span.now{background:var(--accent);color:var(--on-accent)}
+.cbar{align-self:center;height:18px;margin:0 3px;padding:0 6px;border:0;border-radius:6px;background:var(--accent);color:var(--on-accent);
+  font:500 12px/18px var(--cond);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;z-index:1}
+.cbar b{font-weight:700}
+.cbar.cl{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
+.cbar.cr{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
 .paste-form{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:10px}
 .paste-form p{margin:0 0 10px;font-size:14px;color:var(--mute);line-height:1.45}
 .paste-form textarea{width:100%;min-height:160px;font:400 13px/1.4 ui-monospace,monospace;
@@ -214,20 +235,25 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
     <button type="button" class="paste-btn" id="pasteBtn">+ Paste a trip recap</button>
     <div id="pasteForm"></div>
     <div id="pastePreview"></div>
+    <button type="button" class="paste-btn cal-toggle" id="calBtn">Calendar view</button>
   </div>
   <div class="bar">
     <button type="button" class="all" id="lockBtn" title="Forget the password and the trips on this device">Lock</button>
     <button type="button" class="all" id="all">Expand all</button>
   </div>
+  <div id="listView">
   <dl class="tot" id="tot"></dl>
   <main id="list"></main>
   <div id="hidden-sec"></div>
   <p class="foot" id="foot"></p>
   </div>
+  <div id="cal" hidden></div>
+  </div>
 </div>
 
 <script src="parse.js"></script>
 <script src="trips.js"></script>
+<script src="calendar.js"></script>
 <script>
 (function(){
 
@@ -452,11 +478,57 @@ function tripHTML(t,open,noRemove){
     '</div></details>';
 }
 
+// ---------- calendar view ----------
+var view='list';   // 'list' or 'cal'
+var cal=null;      // { y, m } month shown in the calendar view, m from 0
+var openId=null;   // trip card to open when the list shows next
+function tzOf(base){ return (AP[base]&&AP[base].tz)||'UTC'; }
+function today(){ return CalGrid.localDate(new Date().toISOString(),tzOf('MEM')); }
+function thisMonth(){ var p=today().split('-'); return {y:+p[0], m:+p[1]-1}; }
+function routeOf(t){
+  var fl=t.items.filter(function(i){return i.t==='f';});
+  return fl.length?[fl[0].o].concat(fl.map(function(f){return f.d;})).join(' '):'';
+}
+function calHTML(visible){
+  if(!cal) cal=thisMonth();
+  var weeks=CalGrid.monthGrid(cal.y,cal.m,visible,tzOf), now=today(), byId={};
+  visible.forEach(function(t){byId[t.id]=t;});
+  var title=new Date(Date.UTC(cal.y,cal.m,1)).toLocaleString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
+  var html='<div class="cal-nav"><button type="button" data-cal-nav="-1" aria-label="Previous month">&#8249;</button>'+
+    '<h2>'+title+'</h2><button type="button" data-cal-nav="0">Today</button>'+
+    '<button type="button" data-cal-nav="1" aria-label="Next month">&#8250;</button></div>'+
+    '<div class="cal-dow">'+'SMTWTFS'.split('').map(function(d){return '<span>'+d+'</span>';}).join('')+'</div>'+
+    '<div class="cal-grid">';
+  weeks.forEach(function(wk){
+    var lanes=Math.max(1,wk.bars.reduce(function(n,b){return Math.max(n,b.lane+1);},0));
+    html+='<div class="cal-wk" style="grid-template-rows:22px repeat('+lanes+',22px)">';
+    wk.days.forEach(function(d,c){
+      html+='<div class="cday'+(d.inMonth?'':' out')+'" style="grid-column:'+(c+1)+';grid-row:1/span '+(lanes+1)+'">'+
+        '<span'+(d.date===now?' class="now"':'')+'>'+(+d.date.slice(8))+'</span></div>';
+    });
+    wk.bars.forEach(function(b){
+      var route=escAttr(routeOf(byId[b.id]));
+      html+='<button type="button" class="cbar'+(b.continuesLeft?' cl':'')+(b.continuesRight?' cr':'')+'" data-cal-trip="'+escAttr(b.id)+'"'+
+        ' style="grid-column:'+(b.from+1)+'/'+(b.to+2)+';grid-row:'+(b.lane+2)+'" aria-label="Trip '+escAttr(b.id)+', '+route+'">'+
+        '<b>'+escAttr(b.id)+'</b> '+route+'</button>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  if(!weeks.some(function(w){return w.bars.length;})) html+='<p class="foot">No trips in this month.</p>';
+  return html;
+}
+
 function render(){
   var locked=!syncKey();
   document.getElementById('lock').hidden=!locked;
   document.getElementById('app').hidden=locked;
   if(locked){ document.getElementById('range').textContent=''; return; }
+  var cv=view==='cal';
+  document.getElementById('listView').hidden=cv;
+  document.getElementById('cal').hidden=!cv;
+  document.getElementById('all').hidden=cv;
+  document.getElementById('calBtn').textContent=cv?'Trip list':'Calendar view';
   var open={};
   document.querySelectorAll('#list details').forEach(function(d){open[d.dataset.id]=d.open;});
   var visible=Trips.visibleTrips(doc), hiddenTrips=Trips.hiddenTrips(doc), tot=Trips.totals(visible);
@@ -472,7 +544,13 @@ function render(){
       '<div><dt>Trips</dt><dd>'+tot.count+'</dd></div>'+
       '<div><dt>Block</dt><dd>'+tot.block[1]+'<small>planned '+tot.block[0]+'</small></dd></div>'+
       '<div><dt>Pay</dt><dd>'+tot.pay[1]+'<small>planned '+tot.pay[0]+'</small></dd></div>';
-    document.getElementById('list').innerHTML=visible.map(function(t){return tripHTML(t,!!open[t.id]);}).join('');
+    document.getElementById('list').innerHTML=visible.map(function(t){return tripHTML(t,!!open[t.id]||t.id===openId);}).join('');
+  }
+  if(cv) document.getElementById('cal').innerHTML=calHTML(visible);
+  if(openId&&!cv){
+    var card=document.querySelector('#list details[data-id="'+openId+'"]');
+    if(card) card.scrollIntoView();
+    openId=null;
   }
 
   document.getElementById('hidden-sec').innerHTML=hiddenTrips.length?
@@ -492,6 +570,24 @@ function render(){
     'Recap pay may not reflect actual earnings; check Pay Summary for accuracy. '+
     'Bold times are local to each airport (report and release in Memphis time); the line below is GMT (Z).';
 }
+
+document.getElementById('calBtn').addEventListener('click',function(){
+  view=view==='cal'?'list':'cal';
+  render();
+  scrollTo(0,0);
+});
+document.getElementById('cal').addEventListener('click',function(ev){
+  var nav=ev.target.closest('[data-cal-nav]'), bar=ev.target.closest('[data-cal-trip]');
+  if(nav){
+    var n=+nav.dataset.calNav;
+    if(n===0) cal=thisMonth();
+    else cal={y:cal.y+Math.floor((cal.m+n)/12), m:(cal.m+n+12)%12};
+    render();
+  } else if(bar){
+    view='list'; openId=bar.dataset.calTrip;
+    render();
+  }
+});
 
 document.getElementById('all').addEventListener('click',function(){
   var ds=document.querySelectorAll('#list details');
