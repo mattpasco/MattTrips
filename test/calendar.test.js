@@ -1,7 +1,8 @@
 /**
  * Contract tests for calendar.js, the month grid of the calendar view. Run: node --test test/
  * A trip covers the days from its report to its release, as local dates of its base. Weeks start
- * on Sunday. October 2026 starts on a Thursday and ends on a Saturday: its grid is Sep 27 to Oct 31.
+ * on Sunday. October 2026 starts on a Thursday and ends on a Saturday: its grid is Sep 27 to Oct 31,
+ * and then one more week, Nov 1 to 7: the first week of the next month, for a trip that carries over.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -22,7 +23,7 @@ test('localDate: the date in the given time zone, not the Zulu date', () => {
 
 test('a month with no trips: whole weeks from Sunday to Saturday, days outside the month are marked', () => {
   const weeks = grid([]);
-  assert.equal(weeks.length, 5);
+  assert.equal(weeks.length, 6);
   assert.ok(weeks.every(w => w.days.length === 7 && w.bars.length === 0));
   assert.deepEqual([weeks[0].days[0].date, weeks[0].days[0].inMonth], ['2026-09-27', false]);
   assert.deepEqual([weeks[0].days[4].date, weeks[0].days[4].inMonth], ['2026-10-01', true]);
@@ -30,10 +31,25 @@ test('a month with no trips: whole weeks from Sunday to Saturday, days outside t
   assert.equal(weeks.flatMap(w => w.days).filter(d => d.inMonth).length, 31);
 });
 
-test('a month that starts on Sunday and ends on Saturday: exactly four weeks, no outside days', () => {
+test('a month that ends on a Saturday: one more week, the first week of the next month', () => {
+  const weeks = grid([]); // October 2026 ends on Saturday Oct 31
+  assert.deepEqual(weeks[5].days.map(d => d.date), ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']);
+  assert.ok(weeks[5].days.every(d => !d.inMonth));
+});
+
+test('a month that does not end on a Saturday: one more week after its last week, so the next month shows to its 10th', () => {
+  const weeks = grid([], 8); // September 2026 ends on Wednesday Sep 30: its last week is Sep 27 to Oct 3
+  assert.equal(weeks.length, 6);
+  assert.equal(weeks[4].days[6].date, '2026-10-03');
+  assert.deepEqual([weeks[5].days[0].date, weeks[5].days[6].date], ['2026-10-04', '2026-10-10']);
+  assert.ok(weeks[5].days.every(d => !d.inMonth));
+});
+
+test('a month that starts on Sunday and ends on Saturday: four weeks of the month, then the next month', () => {
   const weeks = grid([], 1); // February 2026
-  assert.equal(weeks.length, 4);
-  assert.ok(weeks.flatMap(w => w.days).every(d => d.inMonth));
+  assert.equal(weeks.length, 5);
+  assert.ok(weeks.slice(0, 4).flatMap(w => w.days).every(d => d.inMonth));
+  assert.deepEqual([weeks[4].days[0].date, weeks[4].days[0].inMonth], ['2026-03-01', false]);
 });
 
 test('a one-day trip: one bar on that day', () => {
@@ -65,7 +81,23 @@ test('a trip over a month end: it shows in the grid of each month', () => {
 });
 
 test('a trip outside the grid: no bar', () => {
-  const weeks = grid([trip('early', '2026-09-20T15:00:00Z', '2026-09-22T15:00:00Z'), trip('late', '2026-11-02T15:00:00Z', '2026-11-03T15:00:00Z')]);
+  const weeks = grid([trip('early', '2026-09-20T15:00:00Z', '2026-09-22T15:00:00Z'), trip('late', '2026-11-09T15:00:00Z', '2026-11-10T15:00:00Z')]);
+  assert.ok(weeks.every(w => w.bars.length === 0));
+});
+
+test('a trip that carries over into the next month: the end shows in the first week of the next month', () => {
+  const weeks = grid([trip('a', '2026-10-30T15:00:00Z', '2026-11-03T15:00:00Z')]); // Fri Oct 30 to Tue Nov 3
+  assert.deepEqual(bars(weeks, 4), [['a', 5, 6, 0, false, true]]);
+  assert.deepEqual(bars(weeks, 5), [['a', 0, 2, 0, true, false]]);
+});
+
+test('a trip that is wholly in the first week of the next month: shows there', () => {
+  const weeks = grid([trip('a', '2026-11-04T15:00:00Z', '2026-11-05T15:00:00Z')]); // Wed Nov 4 to Thu Nov 5
+  assert.deepEqual(bars(weeks, 5), [['a', 3, 4, 0, false, false]]);
+});
+
+test('a trip on the 8th of the next month: not shown, the extra week ends on the 7th', () => {
+  const weeks = grid([trip('a', '2026-11-08T15:00:00Z', '2026-11-08T20:00:00Z')]);
   assert.ok(weeks.every(w => w.bars.length === 0));
 });
 
@@ -98,9 +130,9 @@ test('a reserve block and a trip on the same days: separate lanes', () => {
   assert.deepEqual(bars(weeks, 3), [['t', 2, 3, 0, false, false], ['r1', 3, 5, 1, false, false]]);
 });
 
-test('a reserve block in another month: no bar', () => {
-  const weeks = grid([rsv('r1', '2026-11-03', '2026-11-04')]);
-  assert.ok(weeks.every(w => w.bars.length === 0));
+test('a reserve block after the grid: no bar; one in the first week of the next month: a bar there', () => {
+  assert.ok(grid([rsv('r1', '2026-11-10', '2026-11-11')]).every(w => w.bars.length === 0));
+  assert.deepEqual(bars(grid([rsv('r1', '2026-11-03', '2026-11-04')]), 5), [['r1', 2, 3, 0, false, false]]);
 });
 
 // ---------- bars that start and end inside a day (training, vacation) ----------

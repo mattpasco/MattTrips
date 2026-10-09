@@ -22,7 +22,8 @@ Site: https://mattpasco.github.io/MattTrips/
    preview, then tap `Add this trip`.
 3. The page opens on the calendar: the trips on a month grid (weeks start on Sunday). A trip is a bar across
    the days from its report to its release, by Memphis time. A trip that crosses a month end shows
-   in both months. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
+   in both months. The grid also has one more week after the month (dimmed), so a trip that
+   carries over into the next month shows its end. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
    that trip in the list. `Trip list` shows the list, and `Calendar view` goes back.
 4. In the calendar, tap a day for three choices. Each opens its own page, and `Calendar` or `Cancel`
    goes back. The first and last day start as the day that you tapped.
