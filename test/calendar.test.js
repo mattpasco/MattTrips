@@ -1,8 +1,9 @@
 /**
  * Contract tests for calendar.js, the month grid of the calendar view. Run: node --test test/
  * A trip covers the days from its report to its release, as local dates of its base. Weeks start
- * on Sunday. October 2026 starts on a Thursday and ends on a Saturday: its grid is Sep 27 to Oct 31,
- * and then one more week, Nov 1 to 7: the first week of the next month, for a trip that carries over.
+ * on Sunday. October 2026 starts on a Thursday and ends on a Saturday: its weeks are Sep 27 to Oct 31.
+ * The grid has one more week before them (Sep 20 to 26, for a bid month that starts in the last week of
+ * the previous month) and one after them (Nov 1 to 7, for a trip that carries over).
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,7 +13,8 @@ const tzOf = base => ({ MEM: 'America/Chicago', HNL: 'Pacific/Honolulu' })[base]
 const trip = (id, show, end, base = 'MEM') => ({ id, base, show, end });
 const OCT = 9; // month index of October
 const grid = (trips, month = OCT, year = 2026) => C.monthGrid(year, month, trips, tzOf);
-const bars = (weeks, w) => weeks[w].bars.map(b => [b.id, b.from, b.to, b.lane, b.continuesLeft, b.continuesRight]);
+// w counts the weeks of the month from 0 (the week of the 1st). The week before it is -1.
+const bars = (weeks, w) => weeks[w + 1].bars.map(b => [b.id, b.from, b.to, b.lane, b.continuesLeft, b.continuesRight]);
 
 test('localDate: the date in the given time zone, not the Zulu date', () => {
   assert.equal(C.localDate('2026-10-02T03:00:00Z', 'America/Chicago'), '2026-10-01'); // 22:00 CDT
@@ -23,39 +25,47 @@ test('localDate: the date in the given time zone, not the Zulu date', () => {
 
 test('a month with no trips: whole weeks from Sunday to Saturday, days outside the month are marked', () => {
   const weeks = grid([]);
-  assert.equal(weeks.length, 6);
+  assert.equal(weeks.length, 7);
   assert.ok(weeks.every(w => w.days.length === 7 && w.bars.length === 0));
-  assert.deepEqual([weeks[0].days[0].date, weeks[0].days[0].inMonth], ['2026-09-27', false]);
-  assert.deepEqual([weeks[0].days[4].date, weeks[0].days[4].inMonth], ['2026-10-01', true]);
-  assert.deepEqual([weeks[4].days[6].date, weeks[4].days[6].inMonth], ['2026-10-31', true]);
+  assert.deepEqual([weeks[1].days[0].date, weeks[1].days[0].inMonth], ['2026-09-27', false]);
+  assert.deepEqual([weeks[1].days[4].date, weeks[1].days[4].inMonth], ['2026-10-01', true]);
+  assert.deepEqual([weeks[5].days[6].date, weeks[5].days[6].inMonth], ['2026-10-31', true]);
   assert.equal(weeks.flatMap(w => w.days).filter(d => d.inMonth).length, 31);
+});
+
+test('the week before the month: the week before the week of the 1st, for a bid month that starts in the last week of the previous month', () => {
+  const weeks = grid([]); // October 2026: the week of the 1st is Sep 27 to Oct 3
+  assert.deepEqual(weeks[0].days.map(d => d.date), ['2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26']);
+  assert.ok(weeks[0].days.every(d => !d.inMonth));
 });
 
 test('a month that ends on a Saturday: one more week, the first week of the next month', () => {
   const weeks = grid([]); // October 2026 ends on Saturday Oct 31
-  assert.deepEqual(weeks[5].days.map(d => d.date), ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']);
-  assert.ok(weeks[5].days.every(d => !d.inMonth));
+  assert.deepEqual(weeks[6].days.map(d => d.date), ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']);
+  assert.ok(weeks[6].days.every(d => !d.inMonth));
 });
 
 test('a month that does not end on a Saturday: one more week after its last week, so the next month shows to its 10th', () => {
   const weeks = grid([], 8); // September 2026 ends on Wednesday Sep 30: its last week is Sep 27 to Oct 3
-  assert.equal(weeks.length, 6);
-  assert.equal(weeks[4].days[6].date, '2026-10-03');
-  assert.deepEqual([weeks[5].days[0].date, weeks[5].days[6].date], ['2026-10-04', '2026-10-10']);
-  assert.ok(weeks[5].days.every(d => !d.inMonth));
+  assert.equal(weeks.length, 7);
+  assert.deepEqual([weeks[0].days[0].date, weeks[0].days[6].date], ['2026-08-23', '2026-08-29']); // the week before the week of Sep 1
+  assert.equal(weeks[5].days[6].date, '2026-10-03');
+  assert.deepEqual([weeks[6].days[0].date, weeks[6].days[6].date], ['2026-10-04', '2026-10-10']);
+  assert.ok(weeks[6].days.every(d => !d.inMonth));
 });
 
-test('a month that starts on Sunday and ends on Saturday: four weeks of the month, then the next month', () => {
+test('a month that starts on Sunday and ends on Saturday: four weeks of the month, with the last week of January before and the first week of March after', () => {
   const weeks = grid([], 1); // February 2026
-  assert.equal(weeks.length, 5);
-  assert.ok(weeks.slice(0, 4).flatMap(w => w.days).every(d => d.inMonth));
-  assert.deepEqual([weeks[4].days[0].date, weeks[4].days[0].inMonth], ['2026-03-01', false]);
+  assert.equal(weeks.length, 6);
+  assert.deepEqual([weeks[0].days[0].date, weeks[0].days[0].inMonth], ['2026-01-25', false]);
+  assert.ok(weeks.slice(1, 5).flatMap(w => w.days).every(d => d.inMonth));
+  assert.deepEqual([weeks[5].days[0].date, weeks[5].days[0].inMonth], ['2026-03-01', false]);
 });
 
 test('a one-day trip: one bar on that day', () => {
   const weeks = grid([trip('a', '2026-10-14T13:00:00Z', '2026-10-14T20:00:00Z')]);
   assert.deepEqual(bars(weeks, 2), [['a', 3, 3, 0, false, false]]); // Wed Oct 14
-  assert.deepEqual([0, 1, 3, 4].map(w => weeks[w].bars.length), [0, 0, 0, 0]);
+  assert.ok(weeks.filter((w, i) => i !== 3).every(w => w.bars.length === 0)); // the bar is in week 2 of the month, grid row 3
 });
 
 test('a trip that crosses local midnight: it starts on the local day, not the Zulu day', () => {
@@ -81,7 +91,18 @@ test('a trip over a month end: it shows in the grid of each month', () => {
 });
 
 test('a trip outside the grid: no bar', () => {
-  const weeks = grid([trip('early', '2026-09-20T15:00:00Z', '2026-09-22T15:00:00Z'), trip('late', '2026-11-09T15:00:00Z', '2026-11-10T15:00:00Z')]);
+  const weeks = grid([trip('early', '2026-09-13T15:00:00Z', '2026-09-15T15:00:00Z'), trip('late', '2026-11-09T15:00:00Z', '2026-11-10T15:00:00Z')]);
+  assert.ok(weeks.every(w => w.bars.length === 0));
+});
+
+test('a trip in the week before the month: shows there; one that comes over into the month shows both parts', () => {
+  const weeks = grid([trip('in', '2026-09-22T15:00:00Z', '2026-09-23T15:00:00Z'), trip('over', '2026-09-24T15:00:00Z', '2026-09-29T15:00:00Z')]);
+  assert.deepEqual(bars(weeks, -1), [['in', 2, 3, 0, false, false], ['over', 4, 6, 0, false, true]]); // Tue-Wed Sep 22-23; Thu Sep 24 to Sat: no overlap, one row
+  assert.deepEqual(bars(weeks, 0), [['over', 0, 2, 0, true, false]]); // to Tue Sep 29
+});
+
+test('a trip on the 19th of the month before: not shown, the extra week starts on the 20th', () => {
+  const weeks = grid([trip('a', '2026-09-19T15:00:00Z', '2026-09-19T20:00:00Z')]);
   assert.ok(weeks.every(w => w.bars.length === 0));
 });
 
@@ -141,7 +162,7 @@ test('a reserve block after the grid: no bar; one in the first week of the next 
 // A bar has inLeft and inRight: the part of its first and last day that it leaves empty (0 to 1).
 
 const span = (id, from, to, fromMin, toMin) => ({ id, from, to, fromMin, toMin });
-const edges = (weeks, w) => weeks[w].bars.map(b => [b.id, +b.inLeft.toFixed(4), +b.inRight.toFixed(4)]);
+const edges = (weeks, w) => weeks[w + 1].bars.map(b => [b.id, +b.inLeft.toFixed(4), +b.inRight.toFixed(4)]);
 
 test('a whole-day item: it leaves no part of its days empty', () => {
   const weeks = grid([trip('t', '2026-10-14T13:00:00Z', '2026-10-14T20:00:00Z'), rsv('r', '2026-10-20', '2026-10-21')]);
@@ -178,5 +199,5 @@ test('vacation that ends on a Saturday: the end goes over to the next week as a 
 test('an item that ends exactly at midnight of the next week: nothing goes over to that week', () => {
   const weeks = C.monthGrid(2026, OCT, [span('x', '2026-10-24', '2026-10-24', 0, 1440)], noTz);
   assert.deepEqual(bars(weeks, 3), [['x', 6, 6, 0, false, false]]);
-  assert.equal(weeks[4].bars.length, 0);
+  assert.equal(weeks[5].bars.length, 0); // the week of Oct 25 to 31
 });

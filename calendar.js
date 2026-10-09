@@ -2,8 +2,9 @@
  * The month grid of the calendar view.
  * Plain browser script (also runnable under Node via `require`). No dependencies.
  *
- * monthGrid(year, month, trips, tzOf) returns the weeks of the month, from Sunday to Saturday, and one
- * more week after them (the first week of the next month):
+ * monthGrid(year, month, trips, tzOf) returns the weeks of the month, from Sunday to Saturday, with one
+ * more week before them (the last week of the previous month) and one after them (the first week of
+ * the next month):
  *   [ { days: [{ date: 'YYYY-MM-DD', inMonth }] x7,
  *       bars: [{ id, from, to, lane, inLeft, inRight, continuesLeft, continuesRight }] } ]
  * A bar is the part of one item in one week. from and to are columns 0 (Sunday) to 6. inLeft and
@@ -31,8 +32,9 @@ function dayDate(n) { return new Date(n * DAY).toISOString().slice(0, 10); }
 
 function monthGrid(year, month, trips, tzOf) {
   var first = Date.UTC(year, month, 1) / DAY, last = Date.UTC(year, month + 1, 0) / DAY;
-  // The grid ends one week after the last week of the month, so a trip that carries over shows its end.
-  var start = first - new Date(first * DAY).getUTCDay(), end = last + 13 - new Date(last * DAY).getUTCDay();
+  // The grid starts one week before the week of the 1st (a bid month can start in the last week of the
+  // previous month) and ends one week after the last week of the month (a trip can carry over).
+  var start = first - 7 - new Date(first * DAY).getUTCDay(), end = last + 13 - new Date(last * DAY).getUTCDay();
   var spans = trips.map(function (t) {
     // a and b: the start and the end of the item, in minutes on the day line (day number x 1440)
     if (t.from) return { id: t.id, a: dayNum(t.from) * MIN + (t.fromMin || 0), b: dayNum(t.to) * MIN + (t.toMin === undefined ? MIN : t.toMin) };
