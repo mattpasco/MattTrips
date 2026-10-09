@@ -479,7 +479,7 @@ function tripHTML(t,open,noRemove){
 }
 
 // ---------- calendar view ----------
-var view='list';   // 'list' or 'cal'
+var view='cal';    // 'cal' (the page opens on it) or 'list'
 var cal=null;      // { y, m } month shown in the calendar view, m from 0
 var openId=null;   // trip card to open when the list shows next
 function tzOf(base){ return (AP[base]&&AP[base].tz)||'UTC'; }

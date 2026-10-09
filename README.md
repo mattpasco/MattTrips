@@ -20,10 +20,10 @@ Site: https://mattpasco.github.io/MattTrips/
    each device. Your password manager can save it.
 2. `+ Paste a trip recap`: on the trip recap page, select all, copy, and paste. Check the
    preview, then tap `Add this trip`.
-3. `Calendar view` shows the trips on a month grid (weeks start on Sunday). A trip is a bar across
+3. The page opens on the calendar: the trips on a month grid (weeks start on Sunday). A trip is a bar across
    the days from its report to its release, by Memphis time. A trip that crosses a month end shows
    in both months. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
-   that trip in the list. `Trip list` goes back to the list.
+   that trip in the list. `Trip list` shows the list, and `Calendar view` goes back.
 4. Each change syncs to your other devices within a few seconds, and again each time you open
    the page. With no network, the button shows `Lock ⚠`, and the page tries again later.
 5. `Lock` forgets the password and the trips on this device.
