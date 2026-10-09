@@ -9,8 +9,8 @@ Site: https://mattpasco.github.io/MattTrips/
 
 - `index.html`: the page (markup, styles, rendering, and the sync client).
 - `parse.js`: the trip recap parser. `parseTripPaste(text)` returns a trip.
-- `trips.js`: the sync document and the rules that change it (add, remove, restore, purge, crew edits, reserve days, merge).
-- `calendar.js`: the month grid of the calendar view (which days each trip covers).
+- `trips.js`: the sync document and the rules that change it (add, remove, restore, purge, crew edits, calendar events (reserve days, training, vacation), merge).
+- `calendar.js`: the month grid of the calendar view (which days, and which part of a day, each trip or event covers).
 - `sw.js`: offline launch. `worker/`: the sync server (a Cloudflare Worker).
 - `test/`: contract tests for `parse.js`, `trips.js`, and `calendar.js`. `worker/test/`: HTTP tests for the Worker.
 
@@ -24,9 +24,16 @@ Site: https://mattpasco.github.io/MattTrips/
    the days from its report to its release, by Memphis time. A trip that crosses a month end shows
    in both months. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
    that trip in the list. `Trip list` shows the list, and `Calendar view` goes back.
-4. Reserve days: in the calendar, tap a day, then `Add reserve days`. Choose `RA` (0130 to 1330 Central),
-   `RB` (1330 to 0130 Central, the next day), or `R24` (all day), and the first and last day (both start
-   as the day that you tapped). The block shows as a green bar. Tap the bar to remove it.
+4. In the calendar, tap a day for three choices. Each opens its own page, and `Calendar` or `Cancel`
+   goes back. The first and last day start as the day that you tapped.
+   - `Add reserve days`: choose `RA`, `RB`, or `R24`, and the first and last day. Green bar.
+   - `Add training`: the first day and start time, and the last day and end time (Central time).
+     Orange bar, from the start time to the end time.
+   - `Add vacation`: the first and last day. Blue bar. A vacation runs from 0130 Central on the first
+     day to 0129 Central after the last day, so the bar starts 1.5 hours into the first day and ends
+     1.5 hours into the day after the last day.
+
+   Tap a bar to see it and remove it.
 5. Each change syncs to your other devices within a few seconds, and again each time you open
    the page. With no network, the button shows `Lock ⚠`, and the page tries again later.
 6. `Lock` forgets the password and the trips on this device.

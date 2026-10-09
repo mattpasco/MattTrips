@@ -102,3 +102,49 @@ test('a reserve block in another month: no bar', () => {
   const weeks = grid([rsv('r1', '2026-11-03', '2026-11-04')]);
   assert.ok(weeks.every(w => w.bars.length === 0));
 });
+
+// ---------- bars that start and end inside a day (training, vacation) ----------
+// An item can say where in the day it starts and ends: fromMin and toMin are minutes after midnight of
+// `from` and of `to` (toMin can pass 1440: it then ends on a later day). The default is whole days.
+// A bar has inLeft and inRight: the part of its first and last day that it leaves empty (0 to 1).
+
+const span = (id, from, to, fromMin, toMin) => ({ id, from, to, fromMin, toMin });
+const edges = (weeks, w) => weeks[w].bars.map(b => [b.id, +b.inLeft.toFixed(4), +b.inRight.toFixed(4)]);
+
+test('a whole-day item: it leaves no part of its days empty', () => {
+  const weeks = grid([trip('t', '2026-10-14T13:00:00Z', '2026-10-14T20:00:00Z'), rsv('r', '2026-10-20', '2026-10-21')]);
+  assert.deepEqual(edges(weeks, 2), [['t', 0, 0]]);
+  assert.deepEqual(edges(weeks, 3), [['r', 0, 0]]);
+});
+
+test('training inside one day, 08:00 to 17:00: one bar on that day, empty before 08:00 and after 17:00', () => {
+  const weeks = C.monthGrid(2026, OCT, [span('x', '2026-10-14', '2026-10-14', 480, 1020)], noTz);
+  assert.deepEqual(bars(weeks, 2), [['x', 3, 3, 0, false, false]]);
+  assert.deepEqual(edges(weeks, 2), [['x', 0.3333, 0.2917]]);
+});
+
+test('training over midnight, 22:00 to 06:00: from the end of one day to the start of the next', () => {
+  const weeks = C.monthGrid(2026, OCT, [span('x', '2026-10-13', '2026-10-14', 1320, 360)], noTz);
+  assert.deepEqual(bars(weeks, 2), [['x', 2, 3, 0, false, false]]);
+  assert.deepEqual(edges(weeks, 2), [['x', 0.9167, 0.75]]);
+});
+
+test('vacation, 0130 of Oct 12 to 0129 after Oct 14: starts 1.5 hours into the first day, ends 1.5 hours into the day after the last', () => {
+  const weeks = C.monthGrid(2026, OCT, [span('v', '2026-10-12', '2026-10-14', 90, 1530)], noTz);
+  assert.deepEqual(bars(weeks, 2), [['v', 1, 4, 0, false, false]]); // Mon Oct 12 to a sliver of Thu Oct 15
+  assert.deepEqual(edges(weeks, 2), [['v', 0.0625, 0.9375]]);
+});
+
+test('vacation that ends on a Saturday: the end goes over to the next week as a sliver of its first day', () => {
+  const weeks = C.monthGrid(2026, OCT, [span('v', '2026-10-20', '2026-10-24', 90, 1530)], noTz);
+  assert.deepEqual(bars(weeks, 3), [['v', 2, 6, 0, false, true]]);
+  assert.deepEqual(edges(weeks, 3), [['v', 0.0625, 0]]);
+  assert.deepEqual(bars(weeks, 4), [['v', 0, 0, 0, true, false]]);
+  assert.deepEqual(edges(weeks, 4), [['v', 0, 0.9375]]);
+});
+
+test('an item that ends exactly at midnight of the next week: nothing goes over to that week', () => {
+  const weeks = C.monthGrid(2026, OCT, [span('x', '2026-10-24', '2026-10-24', 0, 1440)], noTz);
+  assert.deepEqual(bars(weeks, 3), [['x', 6, 6, 0, false, false]]);
+  assert.equal(weeks[4].bars.length, 0);
+});

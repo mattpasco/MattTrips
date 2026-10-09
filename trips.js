@@ -2,9 +2,10 @@
  * The sync document of the app and the rules that change it.
  * Plain browser script (also runnable under Node via `require`). No dependencies.
  *
- * doc = { trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, reserve?, purged? } } }
+ * doc = { trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }
  * crew is the edited crew list (it replaces trip.crew). fo is an older FO edit, still read.
- * reserve is { type, from, to }: a block of reserve days, with no trip. Every trip function ignores it.
+ * event is { type, from, to, fromTime?, toTime? }: reserve days (RA, RB, R24), training (TRN), or vacation
+ * (VAC), with no trip. Every trip function ignores it.
  * Each change sets updatedAt of that one trip. A merge keeps, for each trip, the record with the
  * newest updatedAt (the Worker does the same). A purge keeps { updatedAt, purged: true } so an
  * older copy on another device can not bring the trip back.
@@ -62,40 +63,62 @@ function addCrew(doc, id, who, now) {
 }
 function purgeTrip(doc, id, now) { doc.trips[id] = { updatedAt: now, purged: true }; }
 
-// Reserve days, in Central time. RB ends on the day after the day that it starts.
+// Calendar events. Reserve days (RA, RB, R24) fill whole days. Times are Central. RB ends the day after it starts.
 var RESERVE_TYPES = {
   RA: { start: '01:30', end: '13:30', nextDay: false },
   RB: { start: '13:30', end: '01:30', nextDay: true },
   R24: { start: '00:00', end: '24:00', nextDay: false },
 };
-function reserveTimes(type) {
-  var r = RESERVE_TYPES[type];
-  if (type === 'R24') return 'All day';
-  return r.start.replace(':', '') + ' to ' + r.end.replace(':', '') + ' CT' + (r.nextDay ? ', next day' : '');
-}
+// A vacation day runs from 0130 to 0129 Central: the calendar bar starts at 0130 of the first day and
+// ends at the end of 0129 on the day after the last day.
+var VACATION = { start: '01:30', end: '01:29', nextDay: true };
+function hm(s) { var p = s.split(':'); return +p[0] * 60 + +p[1]; }
 function validDate(s) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
+  return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
 }
-function liveReserve(rec) { return !!(rec && rec.reserve && !rec.purged); }
-/** Add a block of reserve days. Returns its id, or null (nothing added) if the type or the days are not valid. */
-function addReserve(doc, r, now) {
-  if (!Object.prototype.hasOwnProperty.call(RESERVE_TYPES, r.type)) return null;
-  if (!validDate(r.from) || !validDate(r.to) || r.to < r.from) return null;
-  var id = 'reserve-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-  doc.trips[id] = { updatedAt: now, reserve: { type: r.type, from: r.from, to: r.to } };
+function validTime(s) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(s); }
+function isReserve(type) { return Object.prototype.hasOwnProperty.call(RESERVE_TYPES, type); }
+function liveEvent(rec) { return !!(rec && rec.event && !rec.purged); }
+/** What is wrong with an event { type, from, to, fromTime?, toTime? }, in words, or '' if nothing. */
+function eventProblem(e) {
+  if (!isReserve(e.type) && e.type !== 'VAC' && e.type !== 'TRN') return 'Choose RA, RB, or R24.';
+  if (!validDate(e.from) || !validDate(e.to)) return 'Choose the first and last day.';
+  if (e.to < e.from) return 'The last day is before the first day.';
+  if (e.type === 'TRN') {
+    if (!validTime(e.fromTime) || !validTime(e.toTime)) return 'Choose the start and end times.';
+    if (e.to + ' ' + e.toTime <= e.from + ' ' + e.fromTime) return 'The end is before the start.';
+  }
+  return '';
+}
+/** Add an event. Returns its id, or null (nothing added) if eventProblem finds a problem. Only a training keeps times. */
+function addEvent(doc, e, now) {
+  if (eventProblem(e)) return null;
+  var ev = { type: e.type, from: e.from, to: e.to };
+  if (e.type === 'TRN') { ev.fromTime = e.fromTime; ev.toTime = e.toTime; }
+  var id = 'event-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  doc.trips[id] = { updatedAt: now, event: ev };
   return id;
 }
-function removeReserve(doc, id, now) {
-  if (liveReserve(doc.trips[id])) doc.trips[id] = { updatedAt: now, purged: true };
+function removeEvent(doc, id, now) {
+  if (liveEvent(doc.trips[id])) doc.trips[id] = { updatedAt: now, purged: true };
 }
-/** The reserve blocks, by first day, then type. */
-function reserves(doc) {
-  return Object.keys(doc.trips).filter(function (id) { return liveReserve(doc.trips[id]); }).map(function (id) {
-    var r = doc.trips[id].reserve;
-    return { id: id, type: r.type, from: r.from, to: r.to };
+/** The events, by first day, then type. */
+function events(doc) {
+  return Object.keys(doc.trips).filter(function (id) { return liveEvent(doc.trips[id]); }).map(function (id) {
+    return Object.assign({ id: id }, doc.trips[id].event);
   }).sort(function (a, b) {
     return a.from < b.from ? -1 : a.from > b.from ? 1 : a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : 1;
   });
+}
+/** Where an event sits on the calendar, as an item for CalGrid.monthGrid: minutes after midnight of from and of to. */
+function eventSpan(e) {
+  var span = { from: e.from, to: e.to, fromMin: 0, toMin: 1440 };
+  if (e.type === 'VAC') {
+    span.fromMin = hm(VACATION.start);
+    span.toMin = (VACATION.nextDay ? 1440 : 0) + hm(VACATION.end) + 1;
+  }
+  if (e.type === 'TRN') { span.fromMin = hm(e.fromTime); span.toMin = hm(e.toTime); }
+  return span;
 }
 
 /** The crew with the first officer's name and number replaced by an old FO edit. A blank field shows blank. */
@@ -144,8 +167,8 @@ function mergeDocs(a, b) {
 
 var api = {
   emptyDoc: emptyDoc, hasTrip: hasTrip, addTrip: addTrip, removeTrip: removeTrip, restoreTrip: restoreTrip,
-  purgeTrip: purgeTrip, RESERVE_TYPES: RESERVE_TYPES, reserveTimes: reserveTimes, addReserve: addReserve,
-  removeReserve: removeReserve, reserves: reserves, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
+  purgeTrip: purgeTrip, RESERVE_TYPES: RESERVE_TYPES, eventProblem: eventProblem, addEvent: addEvent,
+  removeEvent: removeEvent, events: events, eventSpan: eventSpan, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
   hiddenTrips: hiddenTrips, totals: totals, mergeDocs: mergeDocs,
 };
 global.Trips = api;

@@ -12,7 +12,7 @@
 :root{
   --bg:#e6ebf1; --card:#ffffff; --ink:#101b2e; --mute:#566276; --line:#d3dbe5; --chip:#eef2f7;
   --accent:#4b1a8c; --on-accent:#ffffff; --band:#f1ecfa;
-  --warn:#b04700; --warn-soft:#fde9d8; --good:#0f7a57; --good-soft:#dcf3ea;
+  --warn:#b04700; --warn-soft:#fde9d8; --good:#0f7a57; --good-soft:#dcf3ea; --vac:#1a56b0; --vac-soft:#dce9fb;
   --sans:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --cond:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
   color-scheme:light dark;
@@ -24,13 +24,13 @@
   :root:not([data-theme="light"]){
     --bg:#0a111c; --card:#121b2a; --ink:#e9eef7; --mute:#93a3ba; --line:#223148; --chip:#1a2639;
     --accent:#b8a0ff; --on-accent:#140a26; --band:#1a1f38;
-    --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a;
+    --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0a111c; --card:#121b2a; --ink:#e9eef7; --mute:#93a3ba; --line:#223148; --chip:#1a2639;
   --accent:#b8a0ff; --on-accent:#140a26; --band:#1a1f38;
-  --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a;
+  --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
 *,*::before,*::after{box-sizing:inherit}
@@ -199,20 +199,28 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
   font:500 12px/18px var(--cond);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;z-index:1}
 .cbar b{font-weight:700}
 .cbar.rsv{background:var(--good-soft);color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.cbar.part{padding:0 3px}
+.cbar.trn{background:var(--warn-soft);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
+.cbar.vac{background:var(--vac-soft);color:var(--vac);box-shadow:inset 0 0 0 1px var(--vac)}
 
 .cal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
 .cal-card h3{font:700 19px/1.1 var(--cond);margin:0 0 10px}
+.cal-card h2{font:700 24px/1 var(--cond);margin:0 0 14px}
+.add-btn{margin-top:8px}
+.cal-back{font:600 15px var(--sans);color:var(--accent);background:transparent;border:0;padding:8px 4px;min-height:40px;margin:4px 0 0;cursor:pointer}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cal-card p{margin:0 0 4px;font-size:14.5px;color:var(--mute)}
 .cal-card .rmwrap{margin-top:8px;padding-top:12px}
-.rsv-types{border:0;margin:0 0 10px;padding:0;display:grid;gap:6px;min-width:0}
-.rsv-types legend{padding:0 0 4px;font:600 13.5px var(--sans);color:var(--mute)}
-.rsv-types label{display:flex;align-items:center;gap:10px;min-height:44px;box-sizing:border-box;padding:6px 12px;
+.rsv-types{border:0;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-width:0}
+.rsv-types legend{padding:0 0 6px;font:600 13.5px var(--sans);color:var(--mute)}
+.rsv-types label{position:relative;display:block}
+.rsv-types input{position:absolute;opacity:0;pointer-events:none}
+.rsv-types b{display:flex;align-items:center;justify-content:center;min-height:48px;font:700 20px var(--cond);
   border:1.5px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer}
-.rsv-types label:has(input:checked){border-color:var(--good);background:var(--good-soft)}
-.rsv-types b{font:700 18px var(--cond);min-width:34px}
-.rsv-types small{font:500 13.5px var(--sans);color:var(--mute)}
+.rsv-types input:checked+b{border-color:var(--good);background:var(--good-soft);color:var(--good)}
+.rsv-types input:focus-visible+b{outline:3px solid var(--accent);outline-offset:2px}
 .cal-card .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font:600 13.5px var(--sans);color:var(--mute)}
-.cal-card input[type=date]{font:500 16px var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);
+.cal-card input[type=date],.cal-card input[type=time]{font:500 16px var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);
   border-radius:8px;padding:9px;width:100%;box-sizing:border-box;min-height:44px}
 .cbar.cl{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
 .cbar.cr{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
@@ -268,6 +276,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
   </div>
   <div id="cal" hidden><div id="calGrid"></div><div id="calPanel"></div></div>
   </div>
+  <div id="page" hidden></div>
 </div>
 
 <script src="parse.js"></script>
@@ -509,35 +518,33 @@ function routeOf(t){
   return fl.length?[fl[0].o].concat(fl.map(function(f){return f.d;})).join(' '):'';
 }
 var selDay=null;   // 'YYYY-MM-DD' of the day that was tapped
-var panel=null;    // the card under the calendar: { kind:'day', date } | { kind:'form', date } | { kind:'block', id, confirm }
+var panel=null;    // the card under the calendar: { kind:'day', date } | { kind:'block', id, confirm }
+var page=null;     // 'RESERVE', 'TRN', or 'VAC' while that add page is open
+var EVENT_CLASS={RA:'rsv',RB:'rsv',R24:'rsv',TRN:'trn',VAC:'vac'};
+var EVENT_NAME={RA:'RA reserve',RB:'RB reserve',R24:'R24 reserve',TRN:'Training',VAC:'Vacation'};
+var PAGE_TITLE={RESERVE:'Add reserve days',TRN:'Add training',VAC:'Add vacation'};
 function dayLabel(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}); }
 function shortDay(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}); }
+/** When an event is, in words: the days, and for a training the times too. */
+function eventWhen(e){
+  if(e.type==='TRN') return shortDay(e.from)+', '+e.fromTime.replace(':','')+' to '+shortDay(e.to)+', '+e.toTime.replace(':','');
+  return e.from===e.to?shortDay(e.from):shortDay(e.from)+' to '+shortDay(e.to);
+}
 function panelHTML(){
   if(!panel) return '';
   if(panel.kind==='day'){
     return '<div class="cal-card"><h3>'+dayLabel(panel.date)+'</h3>'+
-      '<button type="button" class="paste-btn" data-rsv-add>Add reserve days</button></div>';
+      '<button type="button" class="paste-btn" data-add-page="RESERVE">Add reserve days</button>'+
+      '<button type="button" class="paste-btn add-btn" data-add-page="TRN">Add training</button>'+
+      '<button type="button" class="paste-btn add-btn" data-add-page="VAC">Add vacation</button></div>';
   }
-  if(panel.kind==='form'){
-    return '<form class="cal-card" id="rsvForm"><h3>Add reserve days</h3>'+
-      '<fieldset class="rsv-types"><legend>Type</legend>'+
-      Object.keys(Trips.RESERVE_TYPES).map(function(t){
-        return '<label><input type="radio" name="rtype" value="'+t+'" required><b>'+t+'</b><small>'+Trips.reserveTimes(t)+'</small></label>';
-      }).join('')+'</fieldset>'+
-      '<label class="field">First day<input type="date" name="from" required value="'+panel.date+'"></label>'+
-      '<label class="field">Last day<input type="date" name="to" required value="'+panel.date+'"></label>'+
-      '<div class="paste-err" id="rsvErr"></div>'+
-      '<div class="paste-actions"><button type="button" class="paste-cancel" data-rsv-cancel>Cancel</button>'+
-      '<button class="paste-save">Add reserve days</button></div></form>';
-  }
-  var b=Trips.reserves(doc).filter(function(r){return r.id===panel.id;})[0];
-  if(!b) return '';
-  return '<div class="cal-card"><h3>'+b.type+' reserve</h3>'+
-    '<p>'+(b.from===b.to?shortDay(b.from):shortDay(b.from)+' to '+shortDay(b.to))+'</p><p>'+Trips.reserveTimes(b.type)+'</p>'+
+  var e=Trips.events(doc).filter(function(x){return x.id===panel.id;})[0];
+  if(!e) return '';
+  return '<div class="cal-card"><h3>'+EVENT_NAME[e.type]+'</h3><p>'+eventWhen(e)+'</p>'+
     '<div class="rmwrap">'+(panel.confirm?
-      '<button type="button" class="cancel" data-rsv-keep>Cancel</button>'+
-      '<button type="button" class="confirm-rm" data-rsv-rm-yes="'+escAttr(b.id)+'">Yes, remove</button>'
-      :'<button type="button" class="rm" data-rsv-rm>Remove</button>')+'</div></div>';
+      '<button type="button" class="cancel" data-ev-keep>Cancel</button>'+
+      '<button type="button" class="confirm-rm" data-ev-rm-yes="'+escAttr(e.id)+'">Yes, remove</button>'
+      :'<button type="button" class="rm" data-ev-rm>Remove</button>')+'</div></div>';
 }
 function showPanel(p){
   panel=p;
@@ -545,10 +552,39 @@ function showPanel(p){
   el.innerHTML=panelHTML();
   if(p) el.scrollIntoView({block:'nearest'});
 }
+/** The add page for reserve days, training, or vacation. The first and last day start as the day that was tapped. */
+function pageHTML(kind,date){
+  var days='<label class="field">First day<input type="date" name="from" value="'+date+'"></label>'+
+           '<label class="field">Last day<input type="date" name="to" value="'+date+'"></label>';
+  var fields=days;
+  if(kind==='RESERVE'){
+    fields='<fieldset class="rsv-types"><legend>Type</legend>'+Object.keys(Trips.RESERVE_TYPES).map(function(t){
+      return '<label><input type="radio" name="rtype" value="'+t+'"><b>'+t+'</b></label>';
+    }).join('')+'</fieldset>'+days;
+  } else if(kind==='TRN'){
+    fields='<div class="two"><label class="field">First day<input type="date" name="from" value="'+date+'"></label>'+
+             '<label class="field">Start time (CT)<input type="time" name="fromTime"></label></div>'+
+           '<div class="two"><label class="field">Last day<input type="date" name="to" value="'+date+'"></label>'+
+             '<label class="field">End time (CT)<input type="time" name="toTime"></label></div>';
+  }
+  return '<button type="button" class="cal-back" data-page-back>&#8249; Calendar</button>'+
+    '<form class="cal-card" data-kind="'+kind+'" novalidate><h2>'+PAGE_TITLE[kind]+'</h2>'+fields+
+    '<div class="paste-err" id="pageErr"></div>'+
+    '<div class="paste-actions"><button type="button" class="paste-cancel" data-page-back>Cancel</button>'+
+    '<button class="paste-save">Add</button></div></form>';
+}
+function openPage(kind){
+  document.getElementById('page').innerHTML=pageHTML(kind,panel.date);
+  page=kind;
+  render();
+  scrollTo(0,0);
+}
 function calHTML(visible){
   if(!cal) cal=thisMonth();
-  var items=visible.concat(Trips.reserves(doc)), byId={};
-  items.forEach(function(t){byId[t.id]=t;});
+  var byId={}, evById={}, evs=Trips.events(doc);
+  visible.forEach(function(t){byId[t.id]=t;});
+  evs.forEach(function(e){evById[e.id]=e;});
+  var items=visible.concat(evs.map(function(e){return Object.assign({id:e.id},Trips.eventSpan(e));}));
   var weeks=CalGrid.monthGrid(cal.y,cal.m,items,tzOf), now=today();
   var title=new Date(Date.UTC(cal.y,cal.m,1)).toLocaleString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});
   var html='<div class="cal-nav"><button type="button" data-cal-nav="-1" aria-label="Previous month">&#8249;</button>'+
@@ -565,14 +601,18 @@ function calHTML(visible){
         '<span'+(d.date===now?' class="now"':'')+'>'+(+d.date.slice(8))+'</span></button>';
     });
     wk.bars.forEach(function(b){
-      var it=byId[b.id], pos=' style="grid-column:'+(b.from+1)+'/'+(b.to+2)+';grid-row:'+(b.lane+2)+'"',
-          ends=(b.continuesLeft?' cl':'')+(b.continuesRight?' cr':'');
-      if(it.from){ // a block of reserve days
-        html+='<button type="button" class="cbar rsv'+ends+'" data-cal-rsv="'+escAttr(b.id)+'"'+pos+
-          ' aria-label="'+it.type+' reserve, '+shortDay(it.from)+' to '+shortDay(it.to)+'"><b>'+it.type+'</b></button>';
+      var ev=evById[b.id], cols=b.to-b.from+1, ends=(b.continuesLeft?' cl':'')+(b.continuesRight?' cr':'');
+      if(ev){ // reserve days, training, or vacation. A bar that starts or ends inside a day is set in from the edge
+        // at its exact time (a percent margin is of the days that the bar spans).
+        var inset=(b.inLeft>0?';margin-left:'+(b.inLeft/cols*100).toFixed(2)+'%':'')+
+                  (b.inRight>0?';margin-right:'+(b.inRight/cols*100).toFixed(2)+'%':'');
+        var wide=cols-b.inLeft-b.inRight>=0.6; // a bar narrower than 0.6 of a day has no room for its label
+        html+='<button type="button" class="cbar '+EVENT_CLASS[ev.type]+ends+(inset?' part':'')+'" data-cal-ev="'+escAttr(b.id)+'"'+
+          ' style="grid-column:'+(b.from+1)+'/'+(b.to+2)+';grid-row:'+(b.lane+2)+inset+'"'+
+          ' aria-label="'+EVENT_NAME[ev.type]+', '+eventWhen(ev)+'"><b>'+(wide?ev.type:'')+'</b></button>';
         return;
       }
-      var route=escAttr(routeOf(it));
+      var route=escAttr(routeOf(byId[b.id]));
       html+='<button type="button" class="cbar'+(b.continuesLeft?' cl':'')+(b.continuesRight?' cr':'')+'" data-cal-trip="'+escAttr(b.id)+'"'+
         ' style="grid-column:'+(b.from+1)+'/'+(b.to+2)+';grid-row:'+(b.lane+2)+'" aria-label="Trip '+escAttr(b.id)+', '+route+'">'+
         '<b>'+escAttr(b.id)+'</b> '+route+'</button>';
@@ -587,7 +627,9 @@ function calHTML(visible){
 function render(){
   var locked=!syncKey();
   document.getElementById('lock').hidden=!locked;
-  document.getElementById('app').hidden=locked;
+  document.getElementById('app').hidden=locked||!!page;
+  document.getElementById('page').hidden=locked||!page;
+  document.querySelector('.head').hidden=!!page;
   if(locked){ document.getElementById('range').textContent=''; return; }
   var cv=view==='cal';
   document.getElementById('listView').hidden=cv;
@@ -612,7 +654,7 @@ function render(){
     document.getElementById('list').innerHTML=visible.map(function(t){return tripHTML(t,!!open[t.id]||t.id===openId);}).join('');
   }
   if(cv) document.getElementById('calGrid').innerHTML=calHTML(visible);
-  if(panel&&panel.kind==='block'&&!Trips.reserves(doc).some(function(r){return r.id===panel.id;})) showPanel(null);
+  if(panel&&panel.kind==='block'&&!Trips.events(doc).some(function(r){return r.id===panel.id;})) showPanel(null);
   if(openId&&!cv){
     var card=document.querySelector('#list details[data-id="'+openId+'"]');
     if(card) card.scrollIntoView();
@@ -643,9 +685,9 @@ document.getElementById('calBtn').addEventListener('click',function(){
   scrollTo(0,0);
 });
 document.getElementById('cal').addEventListener('click',function(ev){
-  var t=ev.target, nav=t.closest('[data-cal-nav]'), bar=t.closest('[data-cal-trip]'), rsv=t.closest('[data-cal-rsv]'),
-      day=t.closest('[data-day]'), add=t.closest('[data-rsv-add]'), cancel=t.closest('[data-rsv-cancel]'),
-      rm=t.closest('[data-rsv-rm]'), keep=t.closest('[data-rsv-keep]'), rmYes=t.closest('[data-rsv-rm-yes]');
+  var t=ev.target, nav=t.closest('[data-cal-nav]'), bar=t.closest('[data-cal-trip]'), evb=t.closest('[data-cal-ev]'),
+      day=t.closest('[data-day]'), add=t.closest('[data-add-page]'),
+      rm=t.closest('[data-ev-rm]'), keep=t.closest('[data-ev-keep]'), rmYes=t.closest('[data-ev-rm-yes]');
   if(nav){
     var n=+nav.dataset.calNav;
     if(n===0) cal=thisMonth();
@@ -654,41 +696,44 @@ document.getElementById('cal').addEventListener('click',function(ev){
   } else if(bar){
     view='list'; openId=bar.dataset.calTrip;
     render();
-  } else if(rsv){
-    selDay=null; showPanel({kind:'block', id:rsv.dataset.calRsv});
+  } else if(evb){
+    selDay=null; showPanel({kind:'block', id:evb.dataset.calEv});
     render();
   } else if(day){
     selDay=day.dataset.day; showPanel({kind:'day', date:selDay});
     render();
   } else if(add){
-    showPanel({kind:'form', date:panel.date});
-  } else if(cancel){
-    selDay=null; showPanel(null);
-    render();
+    openPage(add.dataset.addPage);
   } else if(rm){
     panel.confirm=true; showPanel(panel);
   } else if(keep){
     panel.confirm=false; showPanel(panel);
   } else if(rmYes){
-    var id=rmYes.dataset.rsvRmYes;
+    var id=rmYes.dataset.evRmYes;
     showPanel(null);
-    change(function(d,now){ Trips.removeReserve(d,id,now); });
+    change(function(d,now){ Trips.removeEvent(d,id,now); });
   }
 });
-document.getElementById('calPanel').addEventListener('change',function(ev){
+document.getElementById('page').addEventListener('click',function(ev){
+  if(ev.target.closest('[data-page-back]')){ page=null; render(); }
+});
+document.getElementById('page').addEventListener('change',function(ev){
   // a first day after the last day moves the last day with it
   if(ev.target.name!=='from') return;
   var to=ev.target.form.elements.to;
   if(to.value<ev.target.value) to.value=ev.target.value;
 });
-document.getElementById('calPanel').addEventListener('submit',function(ev){
+document.getElementById('page').addEventListener('submit',function(ev){
   ev.preventDefault();
-  var f=ev.target.elements, type=f.rtype.value, from=f.from.value, to=f.to.value;
-  if(to<from){ document.getElementById('rsvErr').textContent='The last day is before the first day.'; return; }
-  var p=from.split('-');
-  cal={y:+p[0], m:+p[1]-1}; selDay=null;
+  var form=ev.target, f=form.elements, kind=form.dataset.kind;
+  var e={type:kind==='RESERVE'?f.rtype.value:kind, from:f.from.value, to:f.to.value};
+  if(kind==='TRN'){ e.fromTime=f.fromTime.value; e.toTime=f.toTime.value; }
+  var problem=Trips.eventProblem(e);
+  if(problem){ document.getElementById('pageErr').textContent=problem; return; }
+  var p=e.from.split('-');
+  cal={y:+p[0], m:+p[1]-1}; selDay=null; page=null;
   showPanel(null);
-  change(function(d,now){ Trips.addReserve(d,{type:type,from:from,to:to},now); });
+  change(function(d,now){ Trips.addEvent(d,e,now); });
 });
 
 document.getElementById('all').addEventListener('click',function(){

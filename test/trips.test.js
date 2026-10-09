@@ -173,24 +173,26 @@ test('a merge: records with no numeric updatedAt are ignored', () => {
   assert.deepEqual(m, { trips: {} });
 });
 
-// ---------- reserve days ----------
-// A reserve block is a record of the same document: { updatedAt, reserve: { type, from, to } }.
+// ---------- calendar events: reserve days, training, vacation ----------
+// An event is a record of the same document: { updatedAt, event: { type, from, to, fromTime?, toTime? } }.
+// type is RA, RB, R24 (reserve days), TRN (training, with times), or VAC (vacation).
 // It is not a trip, so every trip list and total ignores it.
 
-const reservesOf = doc => T.reserves(doc).map(r => [r.type, r.from, r.to]);
+const eventsOf = doc => T.events(doc).map(e => [e.type, e.from, e.to]);
+const day = (type, from, to) => ({ type, from, to });
+const training = (from, fromTime, to, toTime) => ({ type: 'TRN', from, fromTime, to, toTime });
 
 test('the reserve types: RA is 0130 to 1330 Central, RB is 1330 to 0130 the next day, R24 is the whole day', () => {
   assert.deepEqual(T.RESERVE_TYPES.RA, { start: '01:30', end: '13:30', nextDay: false });
   assert.deepEqual(T.RESERVE_TYPES.RB, { start: '13:30', end: '01:30', nextDay: true });
   assert.deepEqual(T.RESERVE_TYPES.R24, { start: '00:00', end: '24:00', nextDay: false });
-  assert.deepEqual(['RA', 'RB', 'R24'].map(T.reserveTimes), ['0130 to 1330 CT', '1330 to 0130 CT, next day', 'All day']);
 });
 
 test('an added reserve block: listed with its type and days, and it is not a trip', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
-  const id = T.addReserve(doc, { type: 'RB', from: '2026-10-20', to: '2026-10-22' }, 30);
-  assert.match(id, /^reserve-/);
-  assert.deepEqual(T.reserves(doc), [{ id, type: 'RB', from: '2026-10-20', to: '2026-10-22' }]);
+  const id = T.addEvent(doc, day('RB', '2026-10-20', '2026-10-22'), 30);
+  assert.match(id, /^event-/);
+  assert.deepEqual(T.events(doc), [{ id, type: 'RB', from: '2026-10-20', to: '2026-10-22' }]);
   assert.equal(doc.trips[id].updatedAt, 30);
   assert.deepEqual(ids(T.visibleTrips(doc)), ['a']);
   assert.deepEqual(T.hiddenTrips(doc), []);
@@ -198,54 +200,109 @@ test('an added reserve block: listed with its type and days, and it is not a tri
   assert.equal(T.totals(T.visibleTrips(doc)).count, 1);
 });
 
-test('a reserve block of one day (first day equals last day): added', () => {
+test('a block of one day (first day equals last day): added', () => {
   const doc = T.emptyDoc();
-  assert.ok(T.addReserve(doc, { type: 'R24', from: '2026-10-20', to: '2026-10-20' }, 1));
-  assert.deepEqual(reservesOf(doc), [['R24', '2026-10-20', '2026-10-20']]);
+  assert.ok(T.addEvent(doc, day('R24', '2026-10-20', '2026-10-20'), 1));
+  assert.deepEqual(eventsOf(doc), [['R24', '2026-10-20', '2026-10-20']]);
 });
 
-test('an invalid reserve (unknown type, last day before first day, not a date): nothing is added', () => {
+test('an event that is not valid: nothing is added, and the problem is told in words', () => {
   const doc = T.emptyDoc();
   const bad = [
-    { type: 'RC', from: '2026-10-20', to: '2026-10-20' },
-    { type: 'toString', from: '2026-10-20', to: '2026-10-20' },
-    { type: 'RA', from: '2026-10-22', to: '2026-10-20' },
-    { type: 'RA', from: '2026-02-30', to: '2026-03-01' },
-    { type: 'RA', from: '', to: '' },
+    [day('RC', '2026-10-20', '2026-10-20'), 'Choose RA, RB, or R24.'],
+    [day('toString', '2026-10-20', '2026-10-20'), 'Choose RA, RB, or R24.'],
+    [day('', '2026-10-20', '2026-10-20'), 'Choose RA, RB, or R24.'],
+    [day('RA', '2026-10-22', '2026-10-20'), 'The last day is before the first day.'],
+    [day('VAC', '2026-10-22', '2026-10-20'), 'The last day is before the first day.'],
+    [day('RA', '2026-02-30', '2026-03-01'), 'Choose the first and last day.'],
+    [day('VAC', '', ''), 'Choose the first and last day.'],
   ];
-  bad.forEach(r => assert.equal(T.addReserve(doc, r, 5), null));
+  bad.forEach(([e, problem]) => {
+    assert.equal(T.eventProblem(e), problem);
+    assert.equal(T.addEvent(doc, e, 5), null);
+  });
   assert.deepEqual(doc, { trips: {} });
 });
 
-test('reserve blocks: listed by first day, then by type', () => {
-  const doc = T.emptyDoc();
-  T.addReserve(doc, { type: 'RB', from: '2026-10-21', to: '2026-10-21' }, 1);
-  T.addReserve(doc, { type: 'R24', from: '2026-10-20', to: '2026-10-20' }, 2);
-  T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-20' }, 3);
-  assert.deepEqual(reservesOf(doc).map(r => r[0] + ' ' + r[1]), ['R24 2026-10-20', 'RA 2026-10-20', 'RB 2026-10-21']);
+test('a valid event: no problem', () => {
+  assert.equal(T.eventProblem(day('RA', '2026-10-20', '2026-10-21')), '');
+  assert.equal(T.eventProblem(day('VAC', '2026-10-20', '2026-10-24')), '');
+  assert.equal(T.eventProblem(training('2026-10-20', '08:00', '2026-10-20', '17:00')), '');
 });
 
-test('a removed reserve block: gone from the list, and a stale copy does not bring it back', () => {
+test('training: the first day and time and the last day and time are kept', () => {
   const doc = T.emptyDoc();
-  const id = T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-22' }, 1);
+  const id = T.addEvent(doc, training('2026-10-20', '08:00', '2026-10-22', '17:00'), 1);
+  assert.deepEqual(T.events(doc), [{ id, type: 'TRN', from: '2026-10-20', fromTime: '08:00', to: '2026-10-22', toTime: '17:00' }]);
+});
+
+test('training that runs over midnight (22:00 to 06:00 the next day): added', () => {
+  const doc = T.emptyDoc();
+  assert.ok(T.addEvent(doc, training('2026-10-20', '22:00', '2026-10-21', '06:00'), 1));
+});
+
+test('training with a missing or bad time, or an end that is not after the start: nothing is added', () => {
+  const doc = T.emptyDoc();
+  const bad = [
+    [training('2026-10-20', '', '2026-10-20', '17:00'), 'Choose the start and end times.'],
+    [training('2026-10-20', '08:00', '2026-10-20', ''), 'Choose the start and end times.'],
+    [training('2026-10-20', '25:00', '2026-10-20', '17:00'), 'Choose the start and end times.'],
+    [training('2026-10-20', '8:00', '2026-10-20', '17:00'), 'Choose the start and end times.'],
+    [training('2026-10-20', '17:00', '2026-10-20', '08:00'), 'The end is before the start.'],
+    [training('2026-10-20', '08:00', '2026-10-20', '08:00'), 'The end is before the start.'],
+    [training('2026-10-22', '08:00', '2026-10-20', '17:00'), 'The last day is before the first day.'],
+  ];
+  bad.forEach(([e, problem]) => {
+    assert.equal(T.eventProblem(e), problem);
+    assert.equal(T.addEvent(doc, e, 5), null);
+  });
+  assert.deepEqual(doc, { trips: {} });
+});
+
+test('vacation and reserve days keep no times, even when times are passed in', () => {
+  const doc = T.emptyDoc();
+  const v = T.addEvent(doc, { type: 'VAC', from: '2026-10-20', to: '2026-10-24', fromTime: '08:00', toTime: '17:00' }, 1);
+  const r = T.addEvent(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-24', fromTime: '08:00', toTime: '17:00' }, 2);
+  assert.deepEqual(doc.trips[v].event, { type: 'VAC', from: '2026-10-20', to: '2026-10-24' });
+  assert.deepEqual(doc.trips[r].event, { type: 'RA', from: '2026-10-20', to: '2026-10-24' });
+});
+
+test('events: listed by first day, then by type', () => {
+  const doc = T.emptyDoc();
+  T.addEvent(doc, day('RB', '2026-10-21', '2026-10-21'), 1);
+  T.addEvent(doc, day('R24', '2026-10-20', '2026-10-20'), 2);
+  T.addEvent(doc, day('RA', '2026-10-20', '2026-10-20'), 3);
+  T.addEvent(doc, day('VAC', '2026-10-20', '2026-10-21'), 4);
+  assert.deepEqual(eventsOf(doc).map(e => e[0] + ' ' + e[1]), ['R24 2026-10-20', 'RA 2026-10-20', 'VAC 2026-10-20', 'RB 2026-10-21']);
+});
+
+test('the days on the calendar: reserve days fill whole days; vacation runs from 0130 of the first day to 0129 after the last day; training runs from its start to its end', () => {
+  assert.deepEqual(T.eventSpan(day('RB', '2026-10-20', '2026-10-22')), { from: '2026-10-20', to: '2026-10-22', fromMin: 0, toMin: 1440 });
+  assert.deepEqual(T.eventSpan(day('VAC', '2026-10-20', '2026-10-24')), { from: '2026-10-20', to: '2026-10-24', fromMin: 90, toMin: 1530 });
+  assert.deepEqual(T.eventSpan(training('2026-10-20', '08:00', '2026-10-22', '17:00')), { from: '2026-10-20', to: '2026-10-22', fromMin: 480, toMin: 1020 });
+});
+
+test('a removed event: gone from the list, and a stale copy does not bring it back', () => {
+  const doc = T.emptyDoc();
+  const id = T.addEvent(doc, day('VAC', '2026-10-20', '2026-10-22'), 1);
   const stale = JSON.parse(JSON.stringify(doc));
-  T.removeReserve(doc, id, 9);
-  assert.deepEqual(T.reserves(doc), []);
+  T.removeEvent(doc, id, 9);
+  assert.deepEqual(T.events(doc), []);
   assert.deepEqual(doc.trips[id], { updatedAt: 9, purged: true });
-  assert.deepEqual(T.reserves(T.mergeDocs(doc, stale)), []);
-  assert.deepEqual(T.reserves(T.mergeDocs(stale, doc)), []);
+  assert.deepEqual(T.events(T.mergeDocs(doc, stale)), []);
+  assert.deepEqual(T.events(T.mergeDocs(stale, doc)), []);
 });
 
-test('two devices each add a reserve block: a merge keeps both', () => {
+test('two devices each add an event: a merge keeps both', () => {
   const phone = T.emptyDoc(), pc = T.emptyDoc();
-  T.addReserve(phone, { type: 'RA', from: '2026-10-20', to: '2026-10-21' }, 5);
-  T.addReserve(pc, { type: 'RB', from: '2026-10-25', to: '2026-10-26' }, 6);
-  assert.deepEqual(reservesOf(T.mergeDocs(phone, pc)), [['RA', '2026-10-20', '2026-10-21'], ['RB', '2026-10-25', '2026-10-26']]);
+  T.addEvent(phone, day('RA', '2026-10-20', '2026-10-21'), 5);
+  T.addEvent(pc, training('2026-10-25', '08:00', '2026-10-26', '17:00'), 6);
+  assert.deepEqual(eventsOf(T.mergeDocs(phone, pc)), [['RA', '2026-10-20', '2026-10-21'], ['TRN', '2026-10-25', '2026-10-26']]);
 });
 
-test('a trip edit with the id of a reserve block: changes nothing', () => {
+test('a trip edit with the id of an event: changes nothing', () => {
   const doc = T.emptyDoc();
-  const id = T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-20' }, 1);
+  const id = T.addEvent(doc, day('RA', '2026-10-20', '2026-10-20'), 1);
   const before = JSON.stringify(doc);
   T.removeTrip(doc, id, 2);
   T.addCrew(doc, id, { name: 'X' }, 3);
@@ -253,10 +310,10 @@ test('a trip edit with the id of a reserve block: changes nothing', () => {
   assert.equal(JSON.stringify(doc), before);
 });
 
-test('removing an id that is not a reserve block (a trip, or nothing): changes nothing', () => {
+test('removing an id that is not an event (a trip, or nothing): changes nothing', () => {
   const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
   const before = JSON.stringify(doc);
-  T.removeReserve(doc, 'a', 9);
-  T.removeReserve(doc, 'nope', 9);
+  T.removeEvent(doc, 'a', 9);
+  T.removeEvent(doc, 'nope', 9);
   assert.equal(JSON.stringify(doc), before);
 });

@@ -28,10 +28,11 @@ cd worker && npm ci && npm test
 
 ## Sync
 
-- The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, reserve?, purged? } } }`.
+- The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }`.
   `crew` is the edited crew list; `fo` is an older FO-only edit that `trips.js` still reads.
-  `reserve` is `{ type, from, to }`, a block of reserve days (id `reserve-...`). It has no `trip`, so
-  trip lists and totals skip it, and the Worker and old cached pages keep it without a change. Each trip
+  `event` is `{ type, from, to, fromTime?, toTime? }` (id `event-...`): `RA`, `RB`, or `R24` reserve
+  days, `TRN` training (with times, Central), or `VAC` vacation. It has no `trip`, so trip lists and
+  totals skip it, and the Worker and old cached pages keep it without a change. Each trip
   merges on its own: the newest `updatedAt` wins (`mergeDocs` in `trips.js`, `merge` in
   `worker/src/index.js`; keep them the same). A purge keeps `{ updatedAt, purged: true }`.
 - Only a real change may set `updatedAt`. If a device sets it without an edit, its old copy
