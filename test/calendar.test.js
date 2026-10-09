@@ -77,3 +77,28 @@ test('trips that overlap: separate lanes; a later trip takes the first free lane
   ]);
   assert.deepEqual(bars(weeks, 2), [['a', 1, 3, 0, false, false], ['b', 2, 4, 1, false, false], ['c', 5, 5, 0, false, false]]);
 });
+
+// A reserve block has no time: it is the days from `from` to `to` ('YYYY-MM-DD'), and needs no time zone.
+const rsv = (id, from, to) => ({ id, from, to });
+const noTz = () => { throw new Error('a reserve block needs no time zone'); };
+
+test('a reserve block: one bar from its first day to its last day', () => {
+  const weeks = C.monthGrid(2026, OCT, [rsv('r1', '2026-10-20', '2026-10-24')], noTz);
+  assert.deepEqual(bars(weeks, 3), [['r1', 2, 6, 0, false, false]]); // Tue Oct 20 to Sat Oct 24
+});
+
+test('a reserve block over a week end: one bar in each week, with the continuing ends marked', () => {
+  const weeks = C.monthGrid(2026, OCT, [rsv('r1', '2026-10-24', '2026-10-26')], noTz);
+  assert.deepEqual(bars(weeks, 3), [['r1', 6, 6, 0, false, true]]);
+  assert.deepEqual(bars(weeks, 4), [['r1', 0, 1, 0, true, false]]);
+});
+
+test('a reserve block and a trip on the same days: separate lanes', () => {
+  const weeks = grid([trip('t', '2026-10-20T15:00:00Z', '2026-10-21T15:00:00Z'), rsv('r1', '2026-10-21', '2026-10-23')]);
+  assert.deepEqual(bars(weeks, 3), [['t', 2, 3, 0, false, false], ['r1', 3, 5, 1, false, false]]);
+});
+
+test('a reserve block in another month: no bar', () => {
+  const weeks = grid([rsv('r1', '2026-11-03', '2026-11-04')]);
+  assert.ok(weeks.every(w => w.bars.length === 0));
+});

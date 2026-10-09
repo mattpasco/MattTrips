@@ -172,3 +172,91 @@ test('a merge: records with no numeric updatedAt are ignored', () => {
   const m = T.mergeDocs(T.emptyDoc(), { trips: { a: { trip: trip('a', '2026-10-01T00:00:00Z') } } });
   assert.deepEqual(m, { trips: {} });
 });
+
+// ---------- reserve days ----------
+// A reserve block is a record of the same document: { updatedAt, reserve: { type, from, to } }.
+// It is not a trip, so every trip list and total ignores it.
+
+const reservesOf = doc => T.reserves(doc).map(r => [r.type, r.from, r.to]);
+
+test('the reserve types: RA is 0130 to 1330 Central, RB is 1330 to 0130 the next day, R24 is the whole day', () => {
+  assert.deepEqual(T.RESERVE_TYPES.RA, { start: '01:30', end: '13:30', nextDay: false });
+  assert.deepEqual(T.RESERVE_TYPES.RB, { start: '13:30', end: '01:30', nextDay: true });
+  assert.deepEqual(T.RESERVE_TYPES.R24, { start: '00:00', end: '24:00', nextDay: false });
+  assert.deepEqual(['RA', 'RB', 'R24'].map(T.reserveTimes), ['0130 to 1330 CT', '1330 to 0130 CT, next day', 'All day']);
+});
+
+test('an added reserve block: listed with its type and days, and it is not a trip', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  const id = T.addReserve(doc, { type: 'RB', from: '2026-10-20', to: '2026-10-22' }, 30);
+  assert.match(id, /^reserve-/);
+  assert.deepEqual(T.reserves(doc), [{ id, type: 'RB', from: '2026-10-20', to: '2026-10-22' }]);
+  assert.equal(doc.trips[id].updatedAt, 30);
+  assert.deepEqual(ids(T.visibleTrips(doc)), ['a']);
+  assert.deepEqual(T.hiddenTrips(doc), []);
+  assert.equal(T.hasTrip(doc, id), false);
+  assert.equal(T.totals(T.visibleTrips(doc)).count, 1);
+});
+
+test('a reserve block of one day (first day equals last day): added', () => {
+  const doc = T.emptyDoc();
+  assert.ok(T.addReserve(doc, { type: 'R24', from: '2026-10-20', to: '2026-10-20' }, 1));
+  assert.deepEqual(reservesOf(doc), [['R24', '2026-10-20', '2026-10-20']]);
+});
+
+test('an invalid reserve (unknown type, last day before first day, not a date): nothing is added', () => {
+  const doc = T.emptyDoc();
+  const bad = [
+    { type: 'RC', from: '2026-10-20', to: '2026-10-20' },
+    { type: 'toString', from: '2026-10-20', to: '2026-10-20' },
+    { type: 'RA', from: '2026-10-22', to: '2026-10-20' },
+    { type: 'RA', from: '2026-02-30', to: '2026-03-01' },
+    { type: 'RA', from: '', to: '' },
+  ];
+  bad.forEach(r => assert.equal(T.addReserve(doc, r, 5), null));
+  assert.deepEqual(doc, { trips: {} });
+});
+
+test('reserve blocks: listed by first day, then by type', () => {
+  const doc = T.emptyDoc();
+  T.addReserve(doc, { type: 'RB', from: '2026-10-21', to: '2026-10-21' }, 1);
+  T.addReserve(doc, { type: 'R24', from: '2026-10-20', to: '2026-10-20' }, 2);
+  T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-20' }, 3);
+  assert.deepEqual(reservesOf(doc).map(r => r[0] + ' ' + r[1]), ['R24 2026-10-20', 'RA 2026-10-20', 'RB 2026-10-21']);
+});
+
+test('a removed reserve block: gone from the list, and a stale copy does not bring it back', () => {
+  const doc = T.emptyDoc();
+  const id = T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-22' }, 1);
+  const stale = JSON.parse(JSON.stringify(doc));
+  T.removeReserve(doc, id, 9);
+  assert.deepEqual(T.reserves(doc), []);
+  assert.deepEqual(doc.trips[id], { updatedAt: 9, purged: true });
+  assert.deepEqual(T.reserves(T.mergeDocs(doc, stale)), []);
+  assert.deepEqual(T.reserves(T.mergeDocs(stale, doc)), []);
+});
+
+test('two devices each add a reserve block: a merge keeps both', () => {
+  const phone = T.emptyDoc(), pc = T.emptyDoc();
+  T.addReserve(phone, { type: 'RA', from: '2026-10-20', to: '2026-10-21' }, 5);
+  T.addReserve(pc, { type: 'RB', from: '2026-10-25', to: '2026-10-26' }, 6);
+  assert.deepEqual(reservesOf(T.mergeDocs(phone, pc)), [['RA', '2026-10-20', '2026-10-21'], ['RB', '2026-10-25', '2026-10-26']]);
+});
+
+test('a trip edit with the id of a reserve block: changes nothing', () => {
+  const doc = T.emptyDoc();
+  const id = T.addReserve(doc, { type: 'RA', from: '2026-10-20', to: '2026-10-20' }, 1);
+  const before = JSON.stringify(doc);
+  T.removeTrip(doc, id, 2);
+  T.addCrew(doc, id, { name: 'X' }, 3);
+  T.editCrew(doc, id, 0, { name: 'X', id: '1' }, 4);
+  assert.equal(JSON.stringify(doc), before);
+});
+
+test('removing an id that is not a reserve block (a trip, or nothing): changes nothing', () => {
+  const doc = docWith(trip('a', '2026-10-01T00:00:00Z'));
+  const before = JSON.stringify(doc);
+  T.removeReserve(doc, 'a', 9);
+  T.removeReserve(doc, 'nope', 9);
+  assert.equal(JSON.stringify(doc), before);
+});

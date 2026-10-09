@@ -5,8 +5,9 @@
  * monthGrid(year, month, trips, tzOf) returns the weeks of the month, from Sunday to Saturday:
  *   [ { days: [{ date: 'YYYY-MM-DD', inMonth }] x7,
  *       bars: [{ id, from, to, lane, continuesLeft, continuesRight }] } ]
- * A bar is the part of one trip in one week. from and to are columns 0 (Sunday) to 6. A trip
- * covers the local dates of its base (tzOf(base)) from report to release.
+ * A bar is the part of one item in one week. from and to are columns 0 (Sunday) to 6. An item is a
+ * trip { id, base, show, end }: it covers the local dates of its base (tzOf(base)) from report to
+ * release. Or it is a block of days { id, from, to } with dates 'YYYY-MM-DD' (reserve days).
  */
 (function (global) {
 'use strict';
@@ -28,6 +29,7 @@ function monthGrid(year, month, trips, tzOf) {
   var first = Date.UTC(year, month, 1) / DAY, last = Date.UTC(year, month + 1, 0) / DAY;
   var start = first - new Date(first * DAY).getUTCDay(), end = last + 6 - new Date(last * DAY).getUTCDay();
   var spans = trips.map(function (t) {
+    if (t.from) return { id: t.id, a: dayNum(t.from), b: dayNum(t.to) };
     var tz = tzOf(t.base);
     return { id: t.id, a: dayNum(localDate(t.show, tz)), b: dayNum(localDate(t.end, tz)) };
   }).sort(function (x, y) { return x.a - y.a || (x.id < y.id ? -1 : 1); });
