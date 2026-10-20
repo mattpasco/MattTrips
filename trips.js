@@ -77,6 +77,12 @@ function validDate(s) {
   return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
 }
 function validTime(s) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(s); }
+/** A 24-hour time typed as digits (0830, 830, 08:30, or 8:30) as 'HH:MM'. '' if it is not a 24-hour time. */
+function parseTime(text) {
+  var m = /^([0-9]{1,2}):?([0-9]{2})$/.exec((text || '').trim());
+  var t = m ? ('0' + m[1]).slice(-2) + ':' + m[2] : '';
+  return validTime(t) ? t : '';
+}
 function isReserve(type) { return Object.prototype.hasOwnProperty.call(RESERVE_TYPES, type); }
 function liveEvent(rec) { return !!(rec && rec.event && !rec.purged); }
 function validAirport(s) { return /^[A-Za-z]{3}$/.test((s || '').trim()); }
@@ -88,7 +94,7 @@ function eventProblem(e) {
     if (!(e.flight || '').trim()) return 'Enter the flight number.';
     if (!validAirport(e.dep) || !validAirport(e.arr)) return 'Use 3-letter airport codes, like MEM.';
     if (e.dep.trim().toUpperCase() === e.arr.trim().toUpperCase()) return 'The airports are the same.';
-    if (!validTime(e.fromTime)) return 'Choose the departure time.';
+    if (!validTime(e.fromTime)) return 'Enter the departure time in 24-hour time, like 0830.';
     return '';
   }
   if (!isReserve(e.type) && e.type !== 'VAC' && e.type !== 'TRN') return 'Choose RA, RB, or R24.';
@@ -191,7 +197,7 @@ function mergeDocs(a, b) {
 var api = {
   emptyDoc: emptyDoc, hasTrip: hasTrip, addTrip: addTrip, removeTrip: removeTrip, restoreTrip: restoreTrip,
   purgeTrip: purgeTrip, RESERVE_TYPES: RESERVE_TYPES, eventProblem: eventProblem, addEvent: addEvent,
-  removeEvent: removeEvent, events: events, eventSpan: eventSpan, showTime: showTime, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
+  removeEvent: removeEvent, events: events, eventSpan: eventSpan, showTime: showTime, parseTime: parseTime, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
   hiddenTrips: hiddenTrips, totals: totals, mergeDocs: mergeDocs,
 };
 global.Trips = api;

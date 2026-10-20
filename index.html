@@ -586,7 +586,7 @@ function pageHTML(kind,date){
            '<label class="field">Flight #<input type="text" name="flight" placeholder="FX1234"'+txt+'></label>'+
            '<div class="two"><label class="field">Departure airport<input type="text" name="dep" placeholder="MEM"'+txt+'></label>'+
              '<label class="field">Arrival airport<input type="text" name="arr" placeholder="ATL"'+txt+'></label></div>'+
-           '<label class="field">Local departure time<input type="time" name="fromTime"></label>'+
+           '<label class="field">Local departure time<input type="text" name="fromTime" placeholder="0830" inputmode="numeric" autocomplete="off" spellcheck="false"></label>'+
            '<label class="field">Local show time<output id="showOut" class="show-out">'+showTimeText('')+'</output></label>';
   }
   return '<button type="button" class="cal-back" data-page-back>&#8249; Calendar</button>'+
@@ -741,9 +741,13 @@ document.getElementById('page').addEventListener('click',function(ev){
   if(ev.target.closest('[data-page-back]')){ page=null; render(); }
 });
 function updateShowTime(ev){
-  // the jumpseat page shows the show time (one hour before the departure) as the departure time is typed
+  // The jumpseat page shows the show time (one hour before the departure) as the departure time is typed.
+  // The departure time is typed as 24-hour digits. When the field is left, it is written as HH:MM.
   var out=document.getElementById('showOut');
-  if(out&&ev.target.name==='fromTime') out.textContent=showTimeText(ev.target.value);
+  if(!out||ev.target.name!=='fromTime') return;
+  var t=Trips.parseTime(ev.target.value);
+  out.textContent=showTimeText(t);
+  if(ev.type==='change'&&t) ev.target.value=t;
 }
 document.getElementById('page').addEventListener('input',updateShowTime);
 document.getElementById('page').addEventListener('change',updateShowTime);
@@ -759,7 +763,7 @@ document.getElementById('page').addEventListener('submit',function(ev){
   var e={type:kind==='RESERVE'?f.rtype.value:kind, from:f.from.value};
   if(f.to) e.to=f.to.value;
   if(kind==='TRN'){ e.fromTime=f.fromTime.value; e.toTime=f.toTime.value; }
-  if(kind==='JMP'){ e.flight=f.flight.value; e.dep=f.dep.value; e.arr=f.arr.value; e.fromTime=f.fromTime.value; }
+  if(kind==='JMP'){ e.flight=f.flight.value; e.dep=f.dep.value; e.arr=f.arr.value; e.fromTime=Trips.parseTime(f.fromTime.value); }
   var problem=Trips.eventProblem(e);
   if(problem){ document.getElementById('pageErr').textContent=problem; return; }
   var p=e.from.split('-');

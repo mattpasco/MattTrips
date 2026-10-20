@@ -349,9 +349,9 @@ test('a jumpseat that is not valid: nothing is added, and the problem is told in
     [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEMP', '08:30'), 'Use 3-letter airport codes, like MEM.'],
     [jumpseat('2026-10-21', 'FX1', 'A1L', 'MEM', '08:30'), 'Use 3-letter airport codes, like MEM.'],
     [jumpseat('2026-10-21', 'FX1', 'MEM', 'mem', '08:30'), 'The airports are the same.'],
-    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', ''), 'Choose the departure time.'],
-    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '8:30'), 'Choose the departure time.'],
-    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '24:00'), 'Choose the departure time.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', ''), 'Enter the departure time in 24-hour time, like 0830.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '8:30'), 'Enter the departure time in 24-hour time, like 0830.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '24:00'), 'Enter the departure time in 24-hour time, like 0830.'],
   ];
   bad.forEach(([e, problem]) => {
     assert.equal(T.eventProblem(e), problem);
@@ -397,4 +397,20 @@ test('a departure before 01:00: the show time is on the day before', () => {
 
 test('no show time without a valid departure time', () => {
   ['', '8:30', '24:00', '12:60', 'abc', undefined].forEach(t => assert.equal(T.showTime(t), null));
+});
+
+// ---------- a time typed in 24-hour digits ----------
+// The jumpseat page takes the departure time as typed digits, so it is always 24-hour time.
+
+test('a 24-hour time typed as digits: 0830, 830, 08:30, and 8:30 all give 08:30', () => {
+  ['0830', '830', '08:30', '8:30', ' 0830 '].forEach(t => assert.equal(T.parseTime(t), '08:30', t));
+  assert.equal(T.parseTime('1745'), '17:45');
+  assert.equal(T.parseTime('0000'), '00:00');
+  assert.equal(T.parseTime('2359'), '23:59');
+  assert.equal(T.parseTime('130'), '01:30');
+});
+
+test('a time that is not a 24-hour time: nothing', () => {
+  ['', '17', '083', '1760', '2400', '24:00', '12:60', '12345', 'abc', '08 30', '08:3', '5:45 PM', undefined]
+    .forEach(t => assert.equal(T.parseTime(t), '', String(t)));
 });
