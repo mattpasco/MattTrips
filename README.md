@@ -35,7 +35,9 @@ Site: https://mattpasco.github.io/MattTrips/
      day to 0129 Central after the last day, so the bar starts 1.5 hours into the first day and ends
      1.5 hours into the day after the last day.
    - `Add jumpseat`: the flight number, the departure airport, the arrival airport, and the departure
-     time local to the departure airport. Pink bar on that day, with the flight number.
+     time local to the departure airport. `Local show time` below it fills in by itself: one hour
+     before the departure (on the day before, for a departure before 0100). Pink bar on that day,
+     with the flight number.
 
    Tap a bar to see it and remove it.
 5. Each change syncs to your other devices within a few seconds, and again each time you open

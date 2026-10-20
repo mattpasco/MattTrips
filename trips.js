@@ -125,6 +125,14 @@ function events(doc) {
     return a.from < b.from ? -1 : a.from > b.from ? 1 : a.type < b.type ? -1 : a.type > b.type ? 1 : a.id < b.id ? -1 : 1;
   });
 }
+/** The show time of a jumpseat: one hour before its local departure time, as { time: 'HH:MM', dayBefore }.
+ *  dayBefore is true when that is on the day before. null if the departure time is not a valid time. */
+function showTime(fromTime) {
+  if (!validTime(fromTime)) return null;
+  var m = hm(fromTime) - 60, dayBefore = m < 0;
+  if (dayBefore) m += 1440;
+  return { time: ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2), dayBefore: dayBefore };
+}
 /** Where an event sits on the calendar, as an item for CalGrid.monthGrid: minutes after midnight of from and of to. */
 function eventSpan(e) {
   var span = { from: e.from, to: e.to, fromMin: 0, toMin: 1440 };
@@ -183,7 +191,7 @@ function mergeDocs(a, b) {
 var api = {
   emptyDoc: emptyDoc, hasTrip: hasTrip, addTrip: addTrip, removeTrip: removeTrip, restoreTrip: restoreTrip,
   purgeTrip: purgeTrip, RESERVE_TYPES: RESERVE_TYPES, eventProblem: eventProblem, addEvent: addEvent,
-  removeEvent: removeEvent, events: events, eventSpan: eventSpan, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
+  removeEvent: removeEvent, events: events, eventSpan: eventSpan, showTime: showTime, editCrew: editCrew, addCrew: addCrew, applyCrewOverride: applyCrewOverride, visibleTrips: visibleTrips,
   hiddenTrips: hiddenTrips, totals: totals, mergeDocs: mergeDocs,
 };
 global.Trips = api;

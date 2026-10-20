@@ -211,6 +211,8 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .cal-back{font:600 15px var(--sans);color:var(--accent);background:transparent;border:0;padding:8px 4px;min-height:40px;margin:4px 0 0;cursor:pointer}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cal-card input[type=text]{text-transform:uppercase}
+.show-out{display:block;box-sizing:border-box;min-height:44px;padding:11px 9px;border:1px solid var(--line);border-radius:8px;
+  background:var(--chip);color:var(--ink);font:500 16px var(--sans)}
 .cal-card p{margin:0 0 4px;font-size:14.5px;color:var(--mute)}
 .cal-card .rmwrap{margin-top:8px;padding-top:12px}
 .rsv-types{border:0;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-width:0}
@@ -527,9 +529,15 @@ var EVENT_NAME={RA:'RA reserve',RB:'RB reserve',R24:'R24 reserve',TRN:'Training'
 var PAGE_TITLE={RESERVE:'Add reserve days',TRN:'Add training',VAC:'Add vacation',JMP:'Add jumpseat'};
 function dayLabel(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}); }
 function shortDay(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}); }
+/** The show time of a jumpseat as text: the time, and "(day before)" when it is on the day before. '--:--' if there is none. */
+function showTimeText(fromTime){
+  var s=Trips.showTime(fromTime);
+  return s?s.time+(s.dayBefore?' (day before)':''):'--:--';
+}
 /** When an event is, in words: the days, and for a training or a jumpseat the time too. */
 function eventWhen(e){
-  if(e.type==='JMP') return shortDay(e.from)+', departs '+e.fromTime.replace(':','')+' local';
+  if(e.type==='JMP') return shortDay(e.from)+', show '+showTimeText(e.fromTime).replace(':','').replace(' (day before)',' the day before')+
+    ', departs '+e.fromTime.replace(':','')+' local';
   if(e.type==='TRN') return shortDay(e.from)+', '+e.fromTime.replace(':','')+' to '+shortDay(e.to)+', '+e.toTime.replace(':','');
   return e.from===e.to?shortDay(e.from):shortDay(e.from)+' to '+shortDay(e.to);
 }
@@ -578,7 +586,8 @@ function pageHTML(kind,date){
            '<label class="field">Flight #<input type="text" name="flight" placeholder="FX1234"'+txt+'></label>'+
            '<div class="two"><label class="field">Departure airport<input type="text" name="dep" placeholder="MEM"'+txt+'></label>'+
              '<label class="field">Arrival airport<input type="text" name="arr" placeholder="ATL"'+txt+'></label></div>'+
-           '<label class="field">Local departure time<input type="time" name="fromTime"></label>';
+           '<label class="field">Local departure time<input type="time" name="fromTime"></label>'+
+           '<label class="field">Local show time<output id="showOut" class="show-out">'+showTimeText('')+'</output></label>';
   }
   return '<button type="button" class="cal-back" data-page-back>&#8249; Calendar</button>'+
     '<form class="cal-card" data-kind="'+kind+'" novalidate><h2>'+PAGE_TITLE[kind]+'</h2>'+fields+
@@ -731,6 +740,13 @@ document.getElementById('cal').addEventListener('click',function(ev){
 document.getElementById('page').addEventListener('click',function(ev){
   if(ev.target.closest('[data-page-back]')){ page=null; render(); }
 });
+function updateShowTime(ev){
+  // the jumpseat page shows the show time (one hour before the departure) as the departure time is typed
+  var out=document.getElementById('showOut');
+  if(out&&ev.target.name==='fromTime') out.textContent=showTimeText(ev.target.value);
+}
+document.getElementById('page').addEventListener('input',updateShowTime);
+document.getElementById('page').addEventListener('change',updateShowTime);
 document.getElementById('page').addEventListener('change',function(ev){
   // a first day after the last day moves the last day with it
   if(ev.target.name!=='from') return;

@@ -374,3 +374,27 @@ test('a jumpseat: listed by its day with the other events, and it can be removed
   assert.deepEqual(T.events(doc).map(e => e.type), ['VAC']);
   assert.deepEqual(doc.trips[id], { updatedAt: 9, purged: true });
 });
+
+// ---------- show time of a jumpseat ----------
+// The show time is one hour before the local departure time. Before 01:00 it is on the day before.
+
+test('the show time: one hour before the departure time', () => {
+  assert.deepEqual(T.showTime('08:30'), { time: '07:30', dayBefore: false });
+  assert.deepEqual(T.showTime('23:59'), { time: '22:59', dayBefore: false });
+  assert.deepEqual(T.showTime('10:00'), { time: '09:00', dayBefore: false });
+});
+
+test('a departure at 01:00 or later in the morning: the show time is still that day, down to 00:00', () => {
+  assert.deepEqual(T.showTime('01:00'), { time: '00:00', dayBefore: false });
+  assert.deepEqual(T.showTime('01:01'), { time: '00:01', dayBefore: false });
+});
+
+test('a departure before 01:00: the show time is on the day before', () => {
+  assert.deepEqual(T.showTime('00:59'), { time: '23:59', dayBefore: true });
+  assert.deepEqual(T.showTime('00:30'), { time: '23:30', dayBefore: true });
+  assert.deepEqual(T.showTime('00:00'), { time: '23:00', dayBefore: true });
+});
+
+test('no show time without a valid departure time', () => {
+  ['', '8:30', '24:00', '12:60', 'abc', undefined].forEach(t => assert.equal(T.showTime(t), null));
+});
