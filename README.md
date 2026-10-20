@@ -26,14 +26,16 @@ Site: https://mattpasco.github.io/MattTrips/
    dimmed), so you see a bid month that starts in the last week of the previous month, and a trip that
    carries over into the next month. Use the arrows to change the month, and `Today` to come back. Tap a bar to open
    that trip in the list. `Trip list` shows the list, and `Calendar view` goes back.
-4. In the calendar, tap a day for three choices. Each opens its own page, and `Calendar` or `Cancel`
-   goes back. The first and last day start as the day that you tapped.
+4. In the calendar, tap a day for four choices. Each opens its own page, and `Calendar` or `Cancel`
+   goes back. The day (or the first and last day) starts as the day that you tapped.
    - `Add reserve days`: choose `RA`, `RB`, or `R24`, and the first and last day. Green bar.
    - `Add training`: the first day and start time, and the last day and end time (Central time).
      Orange bar, from the start time to the end time.
    - `Add vacation`: the first and last day. Blue bar. A vacation runs from 0130 Central on the first
      day to 0129 Central after the last day, so the bar starts 1.5 hours into the first day and ends
      1.5 hours into the day after the last day.
+   - `Add jumpseat`: the flight number, the departure airport, the arrival airport, and the departure
+     time local to the departure airport. Pink bar on that day, with the flight number.
 
    Tap a bar to see it and remove it.
 5. Each change syncs to your other devices within a few seconds, and again each time you open

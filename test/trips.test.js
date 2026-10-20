@@ -317,3 +317,60 @@ test('removing an id that is not an event (a trip, or nothing): changes nothing'
   T.removeEvent(doc, 'nope', 9);
   assert.equal(JSON.stringify(doc), before);
 });
+
+// ---------- jumpseat ----------
+// A jumpseat is an event of type JMP on one day: the flight number, the departure and arrival airports,
+// and the departure time local to the departure airport. It is stored with from and to the same day.
+
+const jumpseat = (from, flight, dep, arr, fromTime) => ({ type: 'JMP', from, flight, dep, arr, fromTime });
+
+test('a jumpseat: the day, flight, airports, and local departure time are kept, on one day', () => {
+  const doc = T.emptyDoc();
+  const id = T.addEvent(doc, jumpseat('2026-10-21', 'FX1234', 'ATL', 'MEM', '08:30'), 1);
+  assert.deepEqual(T.events(doc), [{ id, type: 'JMP', from: '2026-10-21', to: '2026-10-21', flight: 'FX1234', dep: 'ATL', arr: 'MEM', fromTime: '08:30' }]);
+  assert.equal(T.eventProblem(jumpseat('2026-10-21', 'FX1234', 'ATL', 'MEM', '08:30')), '');
+});
+
+test('a jumpseat typed in lower case with spaces around it: kept in upper case, trimmed', () => {
+  const doc = T.emptyDoc();
+  const id = T.addEvent(doc, jumpseat('2026-10-21', ' fx1234 ', ' atl ', 'mem ', '08:30'), 1);
+  assert.deepEqual([doc.trips[id].event.flight, doc.trips[id].event.dep, doc.trips[id].event.arr], ['FX1234', 'ATL', 'MEM']);
+});
+
+test('a jumpseat that is not valid: nothing is added, and the problem is told in words', () => {
+  const doc = T.emptyDoc();
+  const bad = [
+    [jumpseat('', 'FX1', 'ATL', 'MEM', '08:30'), 'Choose the day.'],
+    [jumpseat('2026-02-30', 'FX1', 'ATL', 'MEM', '08:30'), 'Choose the day.'],
+    [jumpseat('2026-10-21', '', 'ATL', 'MEM', '08:30'), 'Enter the flight number.'],
+    [jumpseat('2026-10-21', '   ', 'ATL', 'MEM', '08:30'), 'Enter the flight number.'],
+    [jumpseat('2026-10-21', 'FX1', '', 'MEM', '08:30'), 'Use 3-letter airport codes, like MEM.'],
+    [jumpseat('2026-10-21', 'FX1', 'AT', 'MEM', '08:30'), 'Use 3-letter airport codes, like MEM.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEMP', '08:30'), 'Use 3-letter airport codes, like MEM.'],
+    [jumpseat('2026-10-21', 'FX1', 'A1L', 'MEM', '08:30'), 'Use 3-letter airport codes, like MEM.'],
+    [jumpseat('2026-10-21', 'FX1', 'MEM', 'mem', '08:30'), 'The airports are the same.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', ''), 'Choose the departure time.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '8:30'), 'Choose the departure time.'],
+    [jumpseat('2026-10-21', 'FX1', 'ATL', 'MEM', '24:00'), 'Choose the departure time.'],
+  ];
+  bad.forEach(([e, problem]) => {
+    assert.equal(T.eventProblem(e), problem);
+    assert.equal(T.addEvent(doc, e, 5), null);
+  });
+  assert.deepEqual(doc, { trips: {} });
+});
+
+test('a jumpseat on the calendar: the whole day of its local departure', () => {
+  assert.deepEqual(T.eventSpan({ type: 'JMP', from: '2026-10-21', to: '2026-10-21', fromTime: '08:30' }),
+    { from: '2026-10-21', to: '2026-10-21', fromMin: 0, toMin: 1440 });
+});
+
+test('a jumpseat: listed by its day with the other events, and it can be removed', () => {
+  const doc = T.emptyDoc();
+  T.addEvent(doc, day('VAC', '2026-10-22', '2026-10-23'), 1);
+  const id = T.addEvent(doc, jumpseat('2026-10-21', 'FX1234', 'ATL', 'MEM', '08:30'), 2);
+  assert.deepEqual(T.events(doc).map(e => e.type), ['JMP', 'VAC']);
+  T.removeEvent(doc, id, 9);
+  assert.deepEqual(T.events(doc).map(e => e.type), ['VAC']);
+  assert.deepEqual(doc.trips[id], { updatedAt: 9, purged: true });
+});

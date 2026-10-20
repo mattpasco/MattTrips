@@ -4,8 +4,8 @@
  *
  * doc = { trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }
  * crew is the edited crew list (it replaces trip.crew). fo is an older FO edit, still read.
- * event is { type, from, to, fromTime?, toTime? }: reserve days (RA, RB, R24), training (TRN), or vacation
- * (VAC), with no trip. Every trip function ignores it.
+ * event is { type, from, to, fromTime?, toTime?, flight?, dep?, arr? }: reserve days (RA, RB, R24),
+ * training (TRN), vacation (VAC), or a jumpseat (JMP), with no trip. Every trip function ignores it.
  * Each change sets updatedAt of that one trip. A merge keeps, for each trip, the record with the
  * newest updatedAt (the Worker does the same). A purge keeps { updatedAt, purged: true } so an
  * older copy on another device can not bring the trip back.
@@ -79,8 +79,18 @@ function validDate(s) {
 function validTime(s) { return /^([01][0-9]|2[0-3]):[0-5][0-9]$/.test(s); }
 function isReserve(type) { return Object.prototype.hasOwnProperty.call(RESERVE_TYPES, type); }
 function liveEvent(rec) { return !!(rec && rec.event && !rec.purged); }
-/** What is wrong with an event { type, from, to, fromTime?, toTime? }, in words, or '' if nothing. */
+function validAirport(s) { return /^[A-Za-z]{3}$/.test((s || '').trim()); }
+/** What is wrong with an event { type, from, to, fromTime?, toTime? }, in words, or '' if nothing.
+ *  A jumpseat (JMP) is { type, from, flight, dep, arr, fromTime }: one day, no `to`. */
 function eventProblem(e) {
+  if (e.type === 'JMP') {
+    if (!validDate(e.from)) return 'Choose the day.';
+    if (!(e.flight || '').trim()) return 'Enter the flight number.';
+    if (!validAirport(e.dep) || !validAirport(e.arr)) return 'Use 3-letter airport codes, like MEM.';
+    if (e.dep.trim().toUpperCase() === e.arr.trim().toUpperCase()) return 'The airports are the same.';
+    if (!validTime(e.fromTime)) return 'Choose the departure time.';
+    return '';
+  }
   if (!isReserve(e.type) && e.type !== 'VAC' && e.type !== 'TRN') return 'Choose RA, RB, or R24.';
   if (!validDate(e.from) || !validDate(e.to)) return 'Choose the first and last day.';
   if (e.to < e.from) return 'The last day is before the first day.';
@@ -90,11 +100,16 @@ function eventProblem(e) {
   }
   return '';
 }
-/** Add an event. Returns its id, or null (nothing added) if eventProblem finds a problem. Only a training keeps times. */
+/** Add an event. Returns its id, or null (nothing added) if eventProblem finds a problem.
+ *  Only a training and a jumpseat keep times. A jumpseat keeps its flight and airports in upper case. */
 function addEvent(doc, e, now) {
   if (eventProblem(e)) return null;
   var ev = { type: e.type, from: e.from, to: e.to };
   if (e.type === 'TRN') { ev.fromTime = e.fromTime; ev.toTime = e.toTime; }
+  if (e.type === 'JMP') {
+    ev = { type: 'JMP', from: e.from, to: e.from, flight: e.flight.trim().toUpperCase(),
+      dep: e.dep.trim().toUpperCase(), arr: e.arr.trim().toUpperCase(), fromTime: e.fromTime };
+  }
   var id = 'event-' + now.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
   doc.trips[id] = { updatedAt: now, event: ev };
   return id;

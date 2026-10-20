@@ -30,8 +30,9 @@ cd worker && npm ci && npm test
 
 - The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }`.
   `crew` is the edited crew list; `fo` is an older FO-only edit that `trips.js` still reads.
-  `event` is `{ type, from, to, fromTime?, toTime? }` (id `event-...`): `RA`, `RB`, or `R24` reserve
-  days, `TRN` training (with times, Central), or `VAC` vacation. It has no `trip`, so trip lists and
+  `event` is `{ type, from, to, fromTime?, toTime?, flight?, dep?, arr? }` (id `event-...`): `RA`,
+  `RB`, or `R24` reserve days, `TRN` training (with times, Central), `VAC` vacation, or `JMP` jumpseat
+  (one day, `from` = `to`; `fromTime` is local to `dep`). It has no `trip`, so trip lists and
   totals skip it, and the Worker and old cached pages keep it without a change. Each trip
   merges on its own: the newest `updatedAt` wins (`mergeDocs` in `trips.js`, `merge` in
   `worker/src/index.js`; keep them the same). A purge keeps `{ updatedAt, purged: true }`.

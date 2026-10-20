@@ -12,7 +12,7 @@
 :root{
   --bg:#e6ebf1; --card:#ffffff; --ink:#101b2e; --mute:#566276; --line:#d3dbe5; --chip:#eef2f7;
   --accent:#4b1a8c; --on-accent:#ffffff; --band:#f1ecfa;
-  --warn:#b04700; --warn-soft:#fde9d8; --good:#0f7a57; --good-soft:#dcf3ea; --vac:#1a56b0; --vac-soft:#dce9fb;
+  --warn:#b04700; --warn-soft:#fde9d8; --good:#0f7a57; --good-soft:#dcf3ea; --vac:#1a56b0; --vac-soft:#dce9fb; --jmp:#a3195b; --jmp-soft:#fbe0ec;
   --sans:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --cond:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
   color-scheme:light dark;
@@ -24,13 +24,13 @@
   :root:not([data-theme="light"]){
     --bg:#0a111c; --card:#121b2a; --ink:#e9eef7; --mute:#93a3ba; --line:#223148; --chip:#1a2639;
     --accent:#b8a0ff; --on-accent:#140a26; --band:#1a1f38;
-    --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f;
+    --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f; --jmp:#ff8fc0; --jmp-soft:#4a1630;
   }
 }
 :root[data-theme="dark"]{
   --bg:#0a111c; --card:#121b2a; --ink:#e9eef7; --mute:#93a3ba; --line:#223148; --chip:#1a2639;
   --accent:#b8a0ff; --on-accent:#140a26; --band:#1a1f38;
-  --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f;
+  --warn:#ffa65a; --warn-soft:#3a2513; --good:#55d6a6; --good-soft:#12352a; --vac:#8ab8ff; --vac-soft:#16304f; --jmp:#ff8fc0; --jmp-soft:#4a1630;
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
 *,*::before,*::after{box-sizing:inherit}
@@ -202,6 +202,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .cbar.part{padding:0 3px}
 .cbar.trn{background:var(--warn-soft);color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
 .cbar.vac{background:var(--vac-soft);color:var(--vac);box-shadow:inset 0 0 0 1px var(--vac)}
+.cbar.jmp{background:var(--jmp-soft);color:var(--jmp);box-shadow:inset 0 0 0 1px var(--jmp);padding:0 3px}
 
 .cal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
 .cal-card h3{font:700 19px/1.1 var(--cond);margin:0 0 10px}
@@ -209,6 +210,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .add-btn{margin-top:8px}
 .cal-back{font:600 15px var(--sans);color:var(--accent);background:transparent;border:0;padding:8px 4px;min-height:40px;margin:4px 0 0;cursor:pointer}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cal-card input[type=text]{text-transform:uppercase}
 .cal-card p{margin:0 0 4px;font-size:14.5px;color:var(--mute)}
 .cal-card .rmwrap{margin-top:8px;padding-top:12px}
 .rsv-types{border:0;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-width:0}
@@ -220,7 +222,7 @@ s{color:var(--mute);font-weight:500;font-size:.8em;margin-left:5px}
 .rsv-types input:checked+b{border-color:var(--good);background:var(--good-soft);color:var(--good)}
 .rsv-types input:focus-visible+b{outline:3px solid var(--accent);outline-offset:2px}
 .cal-card .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font:600 13.5px var(--sans);color:var(--mute)}
-.cal-card input[type=date],.cal-card input[type=time]{font:500 16px var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);
+.cal-card input[type=date],.cal-card input[type=time],.cal-card input[type=text]{font:500 16px var(--sans);background:var(--bg);color:var(--ink);border:1px solid var(--line);
   border-radius:8px;padding:9px;width:100%;box-sizing:border-box;min-height:44px}
 .cbar.cl{margin-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
 .cbar.cr{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
@@ -519,28 +521,32 @@ function routeOf(t){
 }
 var selDay=null;   // 'YYYY-MM-DD' of the day that was tapped
 var panel=null;    // the card under the calendar: { kind:'day', date } | { kind:'block', id, confirm }
-var page=null;     // 'RESERVE', 'TRN', or 'VAC' while that add page is open
-var EVENT_CLASS={RA:'rsv',RB:'rsv',R24:'rsv',TRN:'trn',VAC:'vac'};
-var EVENT_NAME={RA:'RA reserve',RB:'RB reserve',R24:'R24 reserve',TRN:'Training',VAC:'Vacation'};
-var PAGE_TITLE={RESERVE:'Add reserve days',TRN:'Add training',VAC:'Add vacation'};
+var page=null;     // 'RESERVE', 'TRN', 'VAC', or 'JMP' while that add page is open
+var EVENT_CLASS={RA:'rsv',RB:'rsv',R24:'rsv',TRN:'trn',VAC:'vac',JMP:'jmp'};
+var EVENT_NAME={RA:'RA reserve',RB:'RB reserve',R24:'R24 reserve',TRN:'Training',VAC:'Vacation',JMP:'Jumpseat'};
+var PAGE_TITLE={RESERVE:'Add reserve days',TRN:'Add training',VAC:'Add vacation',JMP:'Add jumpseat'};
 function dayLabel(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}); }
 function shortDay(date){ return new Date(date+'T00:00:00Z').toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}); }
-/** When an event is, in words: the days, and for a training the times too. */
+/** When an event is, in words: the days, and for a training or a jumpseat the time too. */
 function eventWhen(e){
+  if(e.type==='JMP') return shortDay(e.from)+', departs '+e.fromTime.replace(':','')+' local';
   if(e.type==='TRN') return shortDay(e.from)+', '+e.fromTime.replace(':','')+' to '+shortDay(e.to)+', '+e.toTime.replace(':','');
   return e.from===e.to?shortDay(e.from):shortDay(e.from)+' to '+shortDay(e.to);
 }
+/** What an event is, in words: its name, and for a jumpseat the flight and the airports. */
+function jumpseatLine(e){ return escAttr(e.flight)+', '+e.dep+' to '+e.arr; }
 function panelHTML(){
   if(!panel) return '';
   if(panel.kind==='day'){
     return '<div class="cal-card"><h3>'+dayLabel(panel.date)+'</h3>'+
       '<button type="button" class="paste-btn" data-add-page="RESERVE">Add reserve days</button>'+
       '<button type="button" class="paste-btn add-btn" data-add-page="TRN">Add training</button>'+
-      '<button type="button" class="paste-btn add-btn" data-add-page="VAC">Add vacation</button></div>';
+      '<button type="button" class="paste-btn add-btn" data-add-page="VAC">Add vacation</button>'+
+      '<button type="button" class="paste-btn add-btn" data-add-page="JMP">Add jumpseat</button></div>';
   }
   var e=Trips.events(doc).filter(function(x){return x.id===panel.id;})[0];
   if(!e) return '';
-  return '<div class="cal-card"><h3>'+EVENT_NAME[e.type]+'</h3><p>'+eventWhen(e)+'</p>'+
+  return '<div class="cal-card"><h3>'+EVENT_NAME[e.type]+'</h3>'+(e.type==='JMP'?'<p>'+jumpseatLine(e)+'</p>':'')+'<p>'+eventWhen(e)+'</p>'+
     '<div class="rmwrap">'+(panel.confirm?
       '<button type="button" class="cancel" data-ev-keep>Cancel</button>'+
       '<button type="button" class="confirm-rm" data-ev-rm-yes="'+escAttr(e.id)+'">Yes, remove</button>'
@@ -552,7 +558,7 @@ function showPanel(p){
   el.innerHTML=panelHTML();
   if(p) el.scrollIntoView({block:'nearest'});
 }
-/** The add page for reserve days, training, or vacation. The first and last day start as the day that was tapped. */
+/** The add page for reserve days, training, vacation, or a jumpseat. The day (or the first and last day) starts as the day that was tapped. */
 function pageHTML(kind,date){
   var days='<label class="field">First day<input type="date" name="from" value="'+date+'"></label>'+
            '<label class="field">Last day<input type="date" name="to" value="'+date+'"></label>';
@@ -566,6 +572,13 @@ function pageHTML(kind,date){
              '<label class="field">Start time (CT)<input type="time" name="fromTime"></label></div>'+
            '<div class="two"><label class="field">Last day<input type="date" name="to" value="'+date+'"></label>'+
              '<label class="field">End time (CT)<input type="time" name="toTime"></label></div>';
+  } else if(kind==='JMP'){
+    var txt=' autocomplete="off" autocapitalize="characters" spellcheck="false"';
+    fields='<label class="field">Day<input type="date" name="from" value="'+date+'"></label>'+
+           '<label class="field">Flight #<input type="text" name="flight" placeholder="FX1234"'+txt+'></label>'+
+           '<div class="two"><label class="field">Departure airport<input type="text" name="dep" placeholder="MEM"'+txt+'></label>'+
+             '<label class="field">Arrival airport<input type="text" name="arr" placeholder="ATL"'+txt+'></label></div>'+
+           '<label class="field">Local departure time<input type="time" name="fromTime"></label>';
   }
   return '<button type="button" class="cal-back" data-page-back>&#8249; Calendar</button>'+
     '<form class="cal-card" data-kind="'+kind+'" novalidate><h2>'+PAGE_TITLE[kind]+'</h2>'+fields+
@@ -609,7 +622,8 @@ function calHTML(visible){
         var wide=cols-b.inLeft-b.inRight>=0.6; // a bar narrower than 0.6 of a day has no room for its label
         html+='<button type="button" class="cbar '+EVENT_CLASS[ev.type]+ends+(inset?' part':'')+'" data-cal-ev="'+escAttr(b.id)+'"'+
           ' style="grid-column:'+(b.from+1)+'/'+(b.to+2)+';grid-row:'+(b.lane+2)+inset+'"'+
-          ' aria-label="'+EVENT_NAME[ev.type]+', '+eventWhen(ev)+'"><b>'+(wide?ev.type:'')+'</b></button>';
+          ' aria-label="'+escAttr(EVENT_NAME[ev.type]+(ev.type==='JMP'?' '+ev.flight+', '+ev.dep+' to '+ev.arr:'')+', '+eventWhen(ev))+'">'+
+          '<b>'+(wide?(ev.type==='JMP'?escAttr(ev.flight):ev.type):'')+'</b></button>';
         return;
       }
       var route=escAttr(routeOf(byId[b.id]));
@@ -721,13 +735,15 @@ document.getElementById('page').addEventListener('change',function(ev){
   // a first day after the last day moves the last day with it
   if(ev.target.name!=='from') return;
   var to=ev.target.form.elements.to;
-  if(to.value<ev.target.value) to.value=ev.target.value;
+  if(to&&to.value<ev.target.value) to.value=ev.target.value;
 });
 document.getElementById('page').addEventListener('submit',function(ev){
   ev.preventDefault();
   var form=ev.target, f=form.elements, kind=form.dataset.kind;
-  var e={type:kind==='RESERVE'?f.rtype.value:kind, from:f.from.value, to:f.to.value};
+  var e={type:kind==='RESERVE'?f.rtype.value:kind, from:f.from.value};
+  if(f.to) e.to=f.to.value;
   if(kind==='TRN'){ e.fromTime=f.fromTime.value; e.toTime=f.toTime.value; }
+  if(kind==='JMP'){ e.flight=f.flight.value; e.dep=f.dep.value; e.arr=f.arr.value; e.fromTime=f.fromTime.value; }
   var problem=Trips.eventProblem(e);
   if(problem){ document.getElementById('pageErr').textContent=problem; return; }
   var p=e.from.split('-');
