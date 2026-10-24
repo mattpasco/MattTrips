@@ -26,6 +26,19 @@ If you change `worker/`, also run its tests. They start `wrangler dev` (local, n
 cd worker && npm ci && npm test
 ```
 
+## Recap facts that the tests use
+
+- A leg row has a flight number in its first cell. A duty row (`DTDUTY`, org and destination the
+  same, for example `MEM-MEM`) also has something in its first cell, but it is not a leg. Any first
+  cell that ends in `DUTY` is skipped.
+- Ground rows (`GT`) and hotel rows (`HOTEL`) have an empty first cell. A layover is the rows between
+  two flights with two or more `GT` rows: the first `GT` is the ride to the hotel, the last is the ride
+  back, and a `HOTEL` row gives the name and number. A `GT` before the first flight (a ramp pickup), after
+  the last flight, or alone is not a layover. Do not pair `GT` rows across a flight.
+- The last lines of a recap, `Trip show date & time:` and `End date & time:` (Zulu), give the report and
+  the release. A trip that starts with a duty row reports before its first flight, so use them. Without
+  them the report is 60 minutes before the first flight and the release 30 minutes after the last.
+
 ## Sync
 
 - The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }`.

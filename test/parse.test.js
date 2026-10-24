@@ -16,7 +16,12 @@ const flight = (no, date, od, dep, blk, { h = '', turn = '', lo = '', duty = '',
 /** A ground transport or hotel row: first cell empty, then type, -, date, -, start, end, "phone name". */
 const extra = (type, date, t1, t2, phoneName) => row('', type, '', date, '', t1, t2, phoneName);
 
-function recap({ header = 'Trip 901 MEM 77 02OCT26 FAKE', totals = 'Block 12:10 Pay 15:00', legs, crew = [], fares = [] }) {
+/** A duty row (DTDUTY) at the start of a trip: it has a first cell like a flight, but it is not a leg. */
+const duty = (date, od, dep, arr, blk) => row('DTDUTY', '', date, od, '', dep, arr, blk, '100', '', '');
+/** The last lines of a recap: the report and the release of the trip, as Zulu date and time. */
+const showEnd = (show, end) => 'Trip show date & time:\t' + show + '\t \tEnd date & time:\t' + end;
+
+function recap({ header = 'Trip 901 MEM 77 02OCT26 FAKE', totals = 'Block 12:10 Pay 15:00', legs, crew = [], fares = [], footer = [] }) {
   return [
     'Trip Recap',
     header,
@@ -30,6 +35,7 @@ function recap({ header = 'Trip 901 MEM 77 02OCT26 FAKE', totals = 'Block 12:10 
     ...crew,
     '',
     ...(fares.length ? ['Deadhead Fares', ...fares] : []),
+    ...(footer.length ? ['', ...footer] : []),
   ].join('\n');
 }
 
@@ -126,4 +132,88 @@ test('missing parts: each throws its own code', () => {
 test('Windows line endings: the paste parses the same', () => {
   const text = recap({ legs: LEGS, crew: CREW });
   assert.deepEqual(parseTripPaste(text.replace(/\n/g, '\r\n')), parseTripPaste(text));
+});
+
+// ---------- a trip that starts with a duty row (DTDUTY) and a ramp pickup, then a deadhead ----------
+
+const CARS = '+1-212-555-0102 TEST CARS';
+const DUTY_TRIP = [
+  duty('21OCT26', 'MEM-MEM', '0648', '1000', '312'),
+  extra('GT', '21OCT26', '1000', '1100', '+1-901-555-0101 TEST RAMP'),
+  flight('UA3642', '21OCT26', 'MEM-EWR', '1100', '251', { h: 'X', turn: '1327', lo: '1157', duty: '733' }),
+  extra('GT', '21OCT26', '1351', '1416', CARS),
+  extra('HOTEL', '21OCT26', '', '', '+1-201-555-0103 FIRST TEST HOTEL'),
+  extra('GT', '22OCT26', '0143', '0218', CARS),
+  flight('1621', '22OCT26', 'EWR-IND', '0318', '208', { turn: '219' }),
+  flight('1700', '22OCT26', 'IND-EWR', '0745', '147', { turn: '3358', lo: '3228', duty: '744', meals: 'BS' }),
+  extra('GT', '22OCT26', '0932', '1037', CARS),
+  extra('HOTEL', '22OCT26', '', '', '+1-646-555-0104 SECOND TEST HOTEL'),
+  extra('GT', '23OCT26', '1725', '1830', CARS),
+  flight('6030', '23OCT26', 'EWR-MEM', '1930', '249', { meals: 'MS' }),
+];
+const dutyTrip = () => parseTripPaste(recap({
+  legs: DUTY_TRIP, crew: CREW, footer: [showEnd('21OCT26  0648z', '23OCT26  2249z')],
+}));
+const car = (a, b) => ({ co: 'TEST CARS', ph: '+1-212-555-0102', a, b });
+
+test('a DTDUTY row: it is not a leg (no MEM to MEM flight)', () => {
+  const legs = dutyTrip().items.filter(i => i.t === 'f');
+  assert.deepEqual(legs.map(f => f.no), ['UA3642', '1621', '1700', '6030']);
+  assert.equal(legs[0].dh, true);
+});
+
+test('ground transport before the first flight: it is not a layover', () => {
+  assert.deepEqual(dutyTrip().items.map(i => i.t), ['f', 'l', 'f', 'f', 'l', 'f']);
+});
+
+test('each layover has its own ground in, hotel, and ground out, between its two flights', () => {
+  const ls = dutyTrip().items.filter(i => i.t === 'l');
+  assert.deepEqual(ls[0], {
+    t: 'l', stn: 'EWR', hotel: 'FIRST TEST HOTEL', ph: '+1-201-555-0103',
+    in: '2026-10-21T14:16:00Z', out: '2026-10-22T01:43:00Z',
+    gin: car('2026-10-21T13:51:00Z', '2026-10-21T14:16:00Z'), gout: car('2026-10-22T01:43:00Z', '2026-10-22T02:18:00Z'),
+  });
+  assert.deepEqual(ls[1], {
+    t: 'l', stn: 'EWR', hotel: 'SECOND TEST HOTEL', ph: '+1-646-555-0104',
+    in: '2026-10-22T10:37:00Z', out: '2026-10-23T17:25:00Z',
+    gin: car('2026-10-22T09:32:00Z', '2026-10-22T10:37:00Z'), gout: car('2026-10-23T17:25:00Z', '2026-10-23T18:30:00Z'),
+  });
+});
+
+test('the show and end lines of the recap: they give the report and the release, and so the time away', () => {
+  const t = dutyTrip();
+  assert.equal(t.show, '2026-10-21T06:48:00Z'); // the DTDUTY start, 3 hours before the first flight
+  assert.equal(t.end, '2026-10-23T22:49:00Z');
+  assert.deepEqual(t.away, ['64:01', '64:01']);
+});
+
+test('without the show and end lines: the report is 60 min before the first flight, the release 30 min after the last', () => {
+  const t = parseTripPaste(recap({ legs: DUTY_TRIP, crew: CREW }));
+  assert.equal(t.show, '2026-10-21T10:00:00Z');
+  assert.equal(t.end, '2026-10-23T22:49:00Z');
+});
+
+test('between two flights, one ground row alone or a hotel alone: no layover', () => {
+  const two = (...mid) => parseTripPaste(recap({
+    legs: [flight('A1', '02OCT26', 'MEM-ORD', '0900', '200'), ...mid, flight('A2', '04OCT26', 'ORD-MEM', '0900', '200')],
+  })).items.map(i => i.t);
+  assert.deepEqual(two(extra('GT', '02OCT26', '1100', '1130', CARS)), ['f', 'f']);
+  assert.deepEqual(two(extra('HOTEL', '02OCT26', '', '', '+1-201-555-0103 TEST HOTEL')), ['f', 'f']);
+  assert.deepEqual(two(extra('GT', '02OCT26', '1100', '1130', CARS), extra('HOTEL', '02OCT26', '', '', '+1-201-555-0103 TEST HOTEL')), ['f', 'f']);
+});
+
+test('between two flights, two ground rows and no hotel: a layover named Hotel, with the number of the ground company', () => {
+  const t = parseTripPaste(recap({
+    legs: [flight('A1', '02OCT26', 'MEM-ORD', '0900', '200'), extra('GT', '02OCT26', '1100', '1130', CARS),
+      extra('GT', '04OCT26', '0700', '0730', CARS), flight('A2', '04OCT26', 'ORD-MEM', '0900', '200')],
+  }));
+  const l = t.items[1];
+  assert.deepEqual([l.t, l.stn, l.hotel, l.ph], ['l', 'ORD', 'Hotel', '+1-212-555-0102']);
+});
+
+test('ground rows after the last flight: no layover', () => {
+  const t = parseTripPaste(recap({
+    legs: [flight('A1', '02OCT26', 'MEM-ORD', '0900', '200'), extra('GT', '02OCT26', '1100', '1130', CARS), extra('GT', '02OCT26', '1200', '1230', CARS)],
+  }));
+  assert.deepEqual(t.items.map(i => i.t), ['f']);
 });

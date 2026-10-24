@@ -68,11 +68,19 @@ function parseTripPaste(raw){
     if(lines[i].replace(/\t/g,'').trim().length>0) detailLines.push(lines[i]);
   }
 
-  var items=[]; var lastDest=base; var pending=null;
-  function finalizeLayover(gout){
-    items.push({t:'l', stn:pending.stn, hotel:pending.hotelName||'Hotel', ph:pending.hotelPhone||pending.gin.ph,
-      in:pending.gin.b, out:gout.a, gin:pending.gin, gout:gout});
-    pending=null;
+  var items=[]; var lastDest=base; var gap=[];
+  // The ground transport and hotel rows between two flights. With two or more ground rows they are a
+  // layover: the first ground row is the ride to the hotel, the last is the ride back. Ground rows
+  // before the first flight, after the last flight, or alone are not a layover.
+  function closeGap(){
+    var gts=gap.filter(function(g){return g.type==='GT';});
+    var hotel=gap.filter(function(g){return g.type==='HOTEL';})[0];
+    if(items.length&&gts.length>=2){
+      var gin=gts[0].gt, gout=gts[gts.length-1].gt;
+      items.push({t:'l', stn:lastDest, hotel:(hotel&&hotel.name)||'Hotel', ph:(hotel&&hotel.phone)||gin.ph,
+        in:gin.b, out:gout.a, gin:gin, gout:gout});
+    }
+    gap=[];
   }
   detailLines.forEach(function(line){
     var f=line.split('\t');
@@ -84,14 +92,10 @@ function parseTripPaste(raw){
       var combined=(f[7]||'').trim();
       var cm=/^(\+?[\d\-]{7,})\s+(.*)$/.exec(combined);
       var phone=cm?cm[1]:'', name=cm?cm[2].trim():combined;
-      if(type==='GT'){
-        var gt={co:name, ph:phone, a:pISOAt(date,t1), b:pISOAt(date,t2)};
-        if(!pending) pending={stn:lastDest, gin:gt, hotelName:null, hotelPhone:null};
-        else finalizeLayover(gt);
-      } else if(type==='HOTEL'){
-        if(pending){ pending.hotelName=name; pending.hotelPhone=phone; }
-      }
+      if(type==='GT') gap.push({type:'GT', gt:{co:name, ph:phone, a:pISOAt(date,t1), b:pISOAt(date,t2)}});
+      else if(type==='HOTEL') gap.push({type:'HOTEL', name:name, phone:phone});
     } else {
+      if(/DUTY$/i.test(first)) return; // a duty row (DTDUTY) is not a leg
       var flight=first;
       var hFlag=(f[1]||'').trim();
       var date=(f[2]||'').trim();
@@ -111,6 +115,7 @@ function parseTripPaste(raw){
       if(duty) item.duty=[pHM(duty),pHM(duty)];
       if(lyovr) item.lo=[pHM(lyovr),pHM(lyovr)];
       if(meals) item.meals=meals;
+      closeGap();
       items.push(item);
       lastDest=d;
     }
@@ -120,6 +125,12 @@ function parseTripPaste(raw){
   if(!flights.length) throw {code:'no_flights'};
   var show=pAddMinISO(flights[0].s[0],-60);
   var end=pAddMinISO(flights[flights.length-1].s[1],30);
+  // The recap says when the trip starts and ends: use it. It starts before the first flight when the
+  // trip begins with a duty row.
+  var showLine=/Trip show date & time:\s*([0-9]{1,2}[A-Za-z]{3}[0-9]{2})\s+([0-9]{3,4})z?/i.exec(raw);
+  var endLine=/End date & time:\s*([0-9]{1,2}[A-Za-z]{3}[0-9]{2})\s+([0-9]{3,4})z?/i.exec(raw);
+  var shownISO=showLine&&pISOAt(showLine[1],showLine[2]), endedISO=endLine&&pISOAt(endLine[1],endLine[2]);
+  if(shownISO&&endedISO&&Date.parse(endedISO)>Date.parse(shownISO)){ show=shownISO; end=endedISO; }
   var awayMin=Math.round((Date.parse(end)-Date.parse(show))/60000);
   var awayHM=Math.floor(awayMin/60)+':'+(awayMin%60<10?'0':'')+(awayMin%60);
 
