@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Matt's trips importer",
+  "version": "1.0.0",
+  "description": "Copies your trips, reserve days, jumpseats, and vacation from the FedEx crew portal to Matt's trips.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://matttrips-sync.matttrips-sync.workers.dev/*",
+    "http://127.0.0.1:8787/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["https://pilot.fedex.com/crewnav/*"],
+    "js": ["importer.js", "content.js"],
+    "run_at": "document_idle"
+  }],
+  "options_page": "options.html"
+}

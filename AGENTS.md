@@ -39,6 +39,23 @@ cd worker && npm ci && npm test
   the release. A trip that starts with a duty row reports before its first flight, so use them. Without
   them the report is 60 minutes before the first flight and the release 30 minutes after the last.
 
+## Importer (`extension/`)
+
+- `importer.js` is the tested part: `tripFromApi` (the portal's `bytripkey` answer to a trip),
+  `eventsFromApi` (vacation, jumpseats, reserve days), `windowsFor`, and `applyImport` / `syncImport`
+  (what to change in the sync document). `content.js` reads the portal, `background.js` calls the
+  Worker (the portal page may not), `options.*` stores the sync key. Those three have no test: load
+  the extension unpacked and log in to the portal.
+- Never commit a real answer of the portal. The fixtures in `test/importer.test.js` are made up. Save
+  real answers in `.local/` to compare with `parse.js` output.
+- Imported records: trips have `src: 'fx'` and `opDate`; events have ids that start with `event-fx-`.
+  Only those are removed when the portal no longer shows them. The import must never drop a record
+  of another source, and a failed request must stop the whole import (a partial list would remove
+  trips that are still there).
+- An import changes a record only when its data differs, so a repeat changes no `updatedAt`. It keeps
+  `crew`, `fo`, and `removed` of a trip.
+- If a new file is added to `extension/`, list it in `manifest.json`.
+
 ## Sync
 
 - The document is `{ trips: { <id>: { updatedAt, trip?, removed?, crew?, fo?, event?, purged? } } }`.

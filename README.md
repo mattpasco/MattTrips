@@ -11,8 +11,9 @@ Site: https://mattpasco.github.io/MattTrips/
 - `parse.js`: the trip recap parser. `parseTripPaste(text)` returns a trip.
 - `trips.js`: the sync document and the rules that change it (add, remove, restore, purge, crew edits, calendar events (reserve days, training, vacation), merge).
 - `calendar.js`: the month grid of the calendar view (which days, and which part of a day, each trip or event covers).
+- `extension/`: the Chrome extension that imports the schedule from the FedEx crew portal. `importer.js` (portal data to records, and what to change) is tested; `content.js`, `background.js`, and `options.*` are the wiring.
 - `sw.js`: offline launch. `worker/`: the sync server (a Cloudflare Worker).
-- `test/`: contract tests for `parse.js`, `trips.js`, and `calendar.js`. `worker/test/`: HTTP tests for the Worker.
+- `test/`: contract tests for `parse.js`, `trips.js`, `calendar.js`, and `extension/importer.js`. `worker/test/`: HTTP tests for the Worker.
 
 ## Use
 
@@ -46,6 +47,30 @@ Site: https://mattpasco.github.io/MattTrips/
 5. Each change syncs to your other devices within a few seconds, and again each time you open
    the page. With no network, the button shows `Lock ⚠`, and the page tries again later.
 6. `Lock` forgets the password and the trips on this device.
+
+## Automatic import (Chrome on a computer)
+
+The `extension/` folder is a Chrome extension. When you log in to the FedEx crew portal, it reads
+your trips, reserve days, jumpseats, and vacation with your own login, and copies what changed into
+Matt's trips. Your other devices get it through sync. It runs on a computer: Chrome on an iPhone
+does not run extensions.
+
+1. In Chrome open `chrome://extensions`, turn on `Developer mode`, tap `Load unpacked`, and choose the
+   `extension` folder of this repository.
+2. Open the extension's `Details`, then `Extension options`. Type your Matt's trips password and
+   tap `Save`. The extension keeps a key made from it, not the password.
+3. Open the crew portal (`Download schedule`) and log in. A note at the bottom right says what was
+   copied. It reads at most once in 30 minutes.
+
+What it reads: the bid period that you are in, the one before it (a trip that you just flew gets its
+final times), and the next one. A trip that is still in the app but gone from the portal moves to
+`Removed`. Your crew edits and `Removed` marks stay. A vacation, reserve day, or jumpseat that is gone
+from the portal is deleted from the calendar. A trip or event that you delete for good is not
+brought back. Training, sick, and medical days are not imported (add training by hand).
+
+The portal has no public interface for this. The extension uses the same requests as the portal's own
+pages, so FedEx can change them, and then the note says what failed. Keep to your company's rules for
+using the portal.
 
 ## Offline and iPhone
 
