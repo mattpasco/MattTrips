@@ -891,7 +891,7 @@ function pasteErrorMessage(e){
 }
 
 var PASTE_FORM=
-'<div class="paste-form"><p>On the trip recap page, select all the text (Ctrl/Cmd+A) and copy it, then paste the whole thing below.</p>'+
+'<div class="paste-form"><p>On the trip recap page, select all the text (Ctrl/Cmd+A) and copy it. Then tap the button above again, or paste the whole thing below.</p>'+
 '<textarea id="ptText" placeholder="Paste the full trip recap text here..."></textarea>'+
 '<div class="paste-err" id="ptErr"></div>'+
 '<div class="paste-actions"><button type="button" class="paste-cancel" id="ptCancel">Cancel</button>'+
@@ -905,9 +905,49 @@ function closePasteForm(){
   document.getElementById('pasteForm').innerHTML='';
   document.getElementById('pasteBtn').textContent='+ Paste a trip recap';
 }
-document.getElementById('pasteBtn').addEventListener('click',function(){
-  if(document.getElementById('pasteForm').innerHTML.trim()) closePasteForm();
-  else openPasteForm();
+/** Parse a pasted recap and show it for review. Returns null when the preview is shown, else { code, text }: what went wrong. */
+function previewRecap(raw){
+  var trip;
+  try{ trip=parseTripPaste(raw); }
+  catch(e){ return {code:e&&e.code, text:pasteErrorMessage(e)}; }
+  if(Trips.hasTrip(doc,trip.id)) return {code:'dup', text:'Trip '+trip.id+' is already on the list.'};
+  var cardHtml;
+  try{ cardHtml=tripHTML(trip,true,true); }
+  catch(e){ return {code:'show', text:'Parsed the trip, but couldn\'t display it — check the station codes look right.'}; }
+  closePasteForm();
+  var wrap=document.createElement('div');
+  wrap.className='preview';
+  wrap.innerHTML='<div class="preview-head">Review before adding</div>'+cardHtml+
+    '<div class="preview-actions">'+
+      '<button type="button" class="preview-discard" data-discard="1">Discard</button>'+
+      '<button type="button" class="preview-add" data-add="1">Add this trip</button>'+
+    '</div>';
+  wrap.addEventListener('click',function(ev2){
+    if(ev2.target.closest('[data-add]')){ wrap.remove(); change(function(d,now){ Trips.addTrip(d,trip,now); }); }
+    else if(ev2.target.closest('[data-discard]')){ wrap.remove(); }
+  });
+  var box=document.getElementById('pastePreview');
+  box.innerHTML=''; // one preview at a time
+  box.appendChild(wrap);
+  return null;
+}
+// The button reads the clipboard (a tap is needed for that): a recap goes straight to the preview.
+// If the clipboard has no recap, or the browser does not let the page read it, the box to paste into opens.
+document.getElementById('pasteBtn').addEventListener('click',async function(){
+  if(document.getElementById('pasteForm').innerHTML.trim()){ closePasteForm(); return; }
+  var clip='';
+  try{ clip=await navigator.clipboard.readText(); }catch(e){}
+  if(clip&&clip.trim()){
+    var problem=previewRecap(clip);
+    if(!problem) return;
+    openPasteForm();
+    // Do not show what the clipboard has: it can be anything (a password).
+    document.getElementById('ptErr').textContent=problem.code==='no_trip_line'
+      ?'The clipboard has no trip recap. On the FedEx page select all (Ctrl/Cmd+A) and copy, then tap the button again, or paste it here.'
+      :problem.text;
+    return;
+  }
+  openPasteForm();
 });
 document.getElementById('pasteForm').addEventListener('click',function(ev){
   if(ev.target.closest('#ptCancel')){ closePasteForm(); return; }
@@ -916,26 +956,8 @@ document.getElementById('pasteForm').addEventListener('click',function(ev){
     errEl.textContent='';
     var raw=document.getElementById('ptText').value;
     if(!raw||!raw.trim()){ errEl.textContent='Paste the trip text first.'; return; }
-    var trip;
-    try{ trip=parseTripPaste(raw); }
-    catch(e){ errEl.textContent=pasteErrorMessage(e); return; }
-    if(Trips.hasTrip(doc,trip.id)){ errEl.textContent='Trip '+trip.id+' is already on the list.'; return; }
-    var cardHtml;
-    try{ cardHtml=tripHTML(trip,true,true); }
-    catch(e){ errEl.textContent='Parsed the trip, but couldn\'t display it — check the station codes look right.'; return; }
-    closePasteForm();
-    var wrap=document.createElement('div');
-    wrap.className='preview';
-    wrap.innerHTML='<div class="preview-head">Review before adding</div>'+cardHtml+
-      '<div class="preview-actions">'+
-        '<button type="button" class="preview-discard" data-discard="1">Discard</button>'+
-        '<button type="button" class="preview-add" data-add="1">Add this trip</button>'+
-      '</div>';
-    wrap.addEventListener('click',function(ev2){
-      if(ev2.target.closest('[data-add]')){ wrap.remove(); change(function(d,now){ Trips.addTrip(d,trip,now); }); }
-      else if(ev2.target.closest('[data-discard]')){ wrap.remove(); }
-    });
-    document.getElementById('pastePreview').appendChild(wrap);
+    var problem=previewRecap(raw);
+    if(problem) errEl.textContent=problem.text;
   }
 });
 

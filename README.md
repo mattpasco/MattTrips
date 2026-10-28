@@ -18,8 +18,11 @@ Site: https://mattpasco.github.io/MattTrips/
 
 1. Open the site and type your trips password (10 or more characters). Use the same password on
    each device. Your password manager can save it.
-2. `+ Paste a trip recap`: on the trip recap page, select all, copy, and paste. Check the
-   preview, then tap `Add this trip`.
+2. `Download schedule` opens the FedEx crew calendar in a new tab. Log in there and open a trip recap.
+   Select all (Ctrl/Cmd+A) and copy. Back in this app, tap `+ Paste a trip recap`: the app reads
+   the clipboard and shows the trip for review (your browser may ask you to allow the paste). If the
+   clipboard has no recap, or the browser does not let the page read it, a box opens to paste into.
+   Check the preview, then tap `Add this trip`.
 3. The page opens on the calendar: the trips on a month grid (weeks start on Sunday). A trip is a bar across
    the days from its report to its release, by Memphis time. A trip that crosses a month end shows
    in both months. The grid also has one more week before the month and one after it (both
